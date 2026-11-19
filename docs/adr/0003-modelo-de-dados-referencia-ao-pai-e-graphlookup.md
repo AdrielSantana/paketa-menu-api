@@ -57,8 +57,28 @@ O ObjectId é gerado pelo driver sem ida ao banco, é único sem coordenação e
 ## Consequências
 
 - Promover, e um futuro "mover", custam uma escrita por filho direto.
-- **Limites do `$graphLookup`.** No DocumentDB o estágio tem limite de 100 MB de memória, não aceita `allowDiskUse` e devolve erro ao ultrapassar. No MongoDB ele passa a usar disco. Em ambos, cada raiz com seus descendentes é um documento de resultado, sujeito ao limite de 16 MB do BSON.
-- **Escala.** Devolver o menu inteiro em uma resposta é o que limita o desenho, em qualquer modelo. Para volumes grandes, o caminho é carregar por nível (`GET` com o id do pai), cachear a árvore pronta e invalidar na escrita.
+- **Limites do `$graphLookup`.** O estágio tem limite de 100 MB de memória. No DocumentDB ele não aceita `allowDiskUse` e devolve erro ao ultrapassar. No MongoDB 8.0.26 o comportamento medido é o mesmo: erro 40099 (`$graphLookup reached maximum memory consumption`), inclusive com `allowDiskUse: true`. A documentação atual do MongoDB descreve gravação em disco nesse caso, o que essa versão não fez. Além disso, cada raiz com seus descendentes é um documento de resultado, sujeito ao limite de 16 MB do BSON.
+- **Escala.** Devolver o menu inteiro em uma resposta é o que limita o desenho, em qualquer modelo. Para volumes grandes, o caminho é carregar por nível (`GET` com o id do pai), cachear a árvore pronta e invalidar na escrita. Os números estão em "Medições".
 - **Dependência de versão.** Em um cluster DocumentDB anterior ao 8.0.2 este desenho não roda; a alternativa seria o array de ancestrais.
 - **Ciclos.** Criar exige que o pai já exista, excluir remove e promover aponta os filhos para um ancestral. Nenhuma dessas operações fecha um ciclo. Uma operação de "mover" precisaria checar, na mesma transação, que o novo pai não é descendente do item.
 - A ordem por `_id` acompanha a criação dentro de um mesmo processo. Entre processos diferentes, no mesmo segundo, a ordem é determinística mas pode não ser a de chegada. Se a ordem do menu virar requisito de negócio, entra um campo de posição.
+
+## Medições
+
+Medido em 2026-11-19 com MongoDB 8.0.26 (replica set de um nó, em memória), na máquina de desenvolvimento, com nomes curtos (cerca de 54 bytes por item na resposta). Até 10 mil itens, mediana de 7 execuções; acima disso, uma execução. Servem para ordem de grandeza, não como benchmark.
+
+| Itens | Forma | `GET` completo | Resposta | `find` projetado da coleção (só a leitura) |
+|---|---|---|---|---|
+| 1.000 | 10 raízes de 100 | 5 ms | 52 KB | 2 ms |
+| 10.000 | 100 raízes de 100 | 27 ms | 529 KB | 7 ms |
+| 10.000 | 1 raiz | 59 ms | 529 KB | 6 ms |
+| 100.000 | 1.000 raízes de 100 | 1,0 s | 5,3 MB | 0,1 s |
+| 100.000 | 1 raiz com 100 mil filhos | 2,6 s | 5,1 MB | 0,1 s |
+| 200.000 | 1 raiz com 200 mil filhos | 9,9 s | 10,4 MB | 0,2 s |
+| 400.000 | 1 raiz com 400 mil filhos | erro 500 (limite de 100 MB) | | 0,4 s |
+| 1.000.000 | 1.000 raízes de 1.000 | 102 s | 53,6 MB | 1,0 s |
+
+- Até 10 mil itens o `GET` responde em dezenas de milissegundos.
+- O tempo do `GET` é quase todo do `$graphLookup` e cresce mais que linearmente com o número de descendentes de uma mesma raiz: dobrar os itens sob uma raiz multiplicou o tempo por 3,3 a 3,8.
+- Sob uma única raiz, o `GET` falha em algum ponto entre 200 mil e 400 mil descendentes.
+- Em Lambda com invocação síncrona a resposta é limitada a 6 MB, cerca de 110 mil itens com nomes curtos. O API Gateway (REST) limita a integração a 29 segundos por padrão e o payload a 10 MB. Documentação da AWS, conferida em 2026-11-19.
