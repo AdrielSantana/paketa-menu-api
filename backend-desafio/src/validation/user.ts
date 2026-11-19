@@ -19,7 +19,7 @@ export default {
             return res.status(400).json({ messages: errors })
         }
     },
-    objectId: (req: Request, res: Response, next: NextFunction) => {
+    objectId: (req: Request<{ id: string }>, res: Response, next: NextFunction) => {
         if (!mongoose.Types.ObjectId.isValid(req.params.id))
             return res
                 .status(400)
