@@ -47,7 +47,10 @@ describe('CRUD de user (exemplo do boilerplate)', () => {
     const brunoId = await createUser('Bruno')
     await createUser('Carla')
 
-    await request(app).put(`/user/${brunoId}`).send(userPayload('Bruno Editado')).expect(200)
+    await request(app)
+      .put(`/user/${brunoId}`)
+      .send(userPayload('Bruno Editado'))
+      .expect(200)
 
     expect(await listUserNames()).toEqual(['Alice', 'Bruno Editado', 'Carla'])
   })

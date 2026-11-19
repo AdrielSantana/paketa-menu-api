@@ -1,0 +1,5 @@
+# Artefatos do boilerplate e saídas geradas: fora do format/check
+.docs/
+build/
+coverage/
+*.md
