@@ -39,4 +39,27 @@ describe('CRUD de user (exemplo do boilerplate)', () => {
   it('rejeita com 400 um id que não é ObjectId', async () => {
     await request(app).get('/user/123').expect(400)
   })
+
+  // Bug conhecido do boilerplate: o controller filtra por `{ id }`, campo que
+  // não existe no schema. `it.fails` documenta o defeito mantendo a suíte
+  // verde; a correção remove o `.fails`.
+  it.fails('PUT /user/:id altera o usuário pedido, e só ele', async () => {
+    await createUser('Alice')
+    const brunoId = await createUser('Bruno')
+    await createUser('Carla')
+
+    await request(app).put(`/user/${brunoId}`).send(userPayload('Bruno Editado')).expect(200)
+
+    expect(await listUserNames()).toEqual(['Alice', 'Bruno Editado', 'Carla'])
+  })
+
+  it.fails('DELETE /user/:id remove o usuário pedido, e só ele', async () => {
+    await createUser('Alice')
+    await createUser('Bruno')
+    const carlaId = await createUser('Carla')
+
+    await request(app).delete(`/user/${carlaId}`).expect(200)
+
+    expect(await listUserNames()).toEqual(['Alice', 'Bruno'])
+  })
 })
