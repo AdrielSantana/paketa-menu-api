@@ -1,0 +1,5 @@
+# Rápido de propósito: formata e linta só o que está staged e checa tipos.
+# A suíte completa roda no `npm run check` (hook do agente e CI).
+cd backend-desafio
+npx lint-staged
+npm run typecheck
