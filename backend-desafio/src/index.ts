@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 
 import app from './app'
 
-const HOST = process.env.HOST || 'https://localhost'
+const HOST = process.env.HOST || 'http://localhost'
 const PORT = process.env.PORT || 8000
 const LOGMSG = '⚡️[Paketá Credito Live-Coding BoilerPlate]:'
 

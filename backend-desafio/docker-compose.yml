@@ -1,0 +1,17 @@
+# MongoDB para desenvolvimento local. Os testes não dependem disto:
+# usam mongodb-memory-server (ver test/setup/mongo-server.ts).
+services:
+  mongo:
+    image: mongo:8.0
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 }).ok']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mongo-data:
