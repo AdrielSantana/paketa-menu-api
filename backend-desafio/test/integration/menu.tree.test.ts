@@ -14,14 +14,14 @@ import {
 } from '../support/menu'
 
 describe('GET /api/v1/menu', () => {
-  it.fails('devolve 200 e lista vazia quando não há itens', async () => {
+  it('devolve 200 e lista vazia quando não há itens', async () => {
     const response = await request(app).get(MENU_URL).expect(200)
 
     expect(response.headers['content-type']).toMatch(/^application\/json/)
     expect(response.body).toStrictEqual([])
   })
 
-  it.fails('devolve exatamente a árvore de exemplo do enunciado', async () => {
+  it('devolve exatamente a árvore de exemplo do enunciado', async () => {
     const ids = await seedMenu(enunciadoTree)
 
     const menu = await getMenu()
@@ -42,7 +42,7 @@ describe('GET /api/v1/menu', () => {
     expect(ids.size).toBe(12)
   })
 
-  it.fails('folha não tem a chave submenus', async () => {
+  it('folha não tem a chave submenus', async () => {
     await createMenu('Plasma')
 
     const [leaf] = await getMenu()
@@ -50,7 +50,7 @@ describe('GET /api/v1/menu', () => {
     expect(leaf).not.toHaveProperty('submenus')
   })
 
-  it.fails('irmãos vêm na ordem em que foram criados', async () => {
+  it('irmãos vêm na ordem em que foram criados', async () => {
     const parentId = await createMenu('LCD')
     for (const name of ['220', '110', '127', 'Bivolt']) await createMenu(name, parentId)
     await createMenu('Áudio')
@@ -64,7 +64,7 @@ describe('GET /api/v1/menu', () => {
     ])
   })
 
-  it.fails('aninha em qualquer profundidade (150 níveis criados pela API)', async () => {
+  it('aninha em qualquer profundidade (150 níveis criados pela API)', async () => {
     const DEPTH = 150
     let parentId: string | undefined
     for (let level = 1; level <= DEPTH; level++) {

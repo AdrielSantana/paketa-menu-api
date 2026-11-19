@@ -17,7 +17,7 @@ const del = (id: string, query = '') => request(app).delete(`${MENU_URL}/${id}${
 
 describe('DELETE /api/v1/menu/:id', () => {
   describe('item sem filhos', () => {
-    it.fails('apaga a folha e devolve 200 com o id', async () => {
+    it('apaga a folha e devolve 200 com o id', async () => {
       const ids = await seedMenu(enunciadoTree)
 
       const response = await del(ids.get('Plasma')!).expect(200)
@@ -37,7 +37,7 @@ describe('DELETE /api/v1/menu/:id', () => {
       ])
     })
 
-    it.fails('libera o nome para ser usado de novo', async () => {
+    it('libera o nome para ser usado de novo', async () => {
       const id = await createMenu('Plasma')
 
       await del(id).expect(200)
@@ -45,7 +45,7 @@ describe('DELETE /api/v1/menu/:id', () => {
       await createMenu('Plasma')
     })
 
-    it.fails('aceita a estratégia mesmo sem filhos para tratar', async () => {
+    it('aceita a estratégia mesmo sem filhos para tratar', async () => {
       const id = await createMenu('Plasma')
 
       await del(id, '?children=cascade').expect(200)
@@ -55,7 +55,7 @@ describe('DELETE /api/v1/menu/:id', () => {
   })
 
   describe('item com filhos, sem escolha (409)', () => {
-    it.fails('não apaga nada e explica as duas opções', async () => {
+    it('não apaga nada e explica as duas opções', async () => {
       const ids = await seedMenu(enunciadoTree)
 
       const response = await del(ids.get('Televisores')!)
@@ -68,7 +68,7 @@ describe('DELETE /api/v1/menu/:id', () => {
   })
 
   describe('?children=cascade', () => {
-    it.fails('apaga o item e toda a subárvore, e só ela', async () => {
+    it('apaga o item e toda a subárvore, e só ela', async () => {
       const ids = await seedMenu(enunciadoTree)
 
       const response = await del(ids.get('Televisores')!, '?children=cascade').expect(200)
@@ -81,7 +81,7 @@ describe('DELETE /api/v1/menu/:id', () => {
       ])
     })
 
-    it.fails('apaga uma raiz com tudo que está abaixo', async () => {
+    it('apaga uma raiz com tudo que está abaixo', async () => {
       const ids = await seedMenu(enunciadoTree)
 
       const response = await del(ids.get('Informática')!, '?children=cascade').expect(200)
@@ -92,33 +92,28 @@ describe('DELETE /api/v1/menu/:id', () => {
   })
 
   describe('?children=promote', () => {
-    it.fails(
-      'os filhos sobem para o pai do item apagado e os netos seguem com eles',
-      async () => {
-        const ids = await seedMenu(enunciadoTree)
+    it('os filhos sobem para o pai do item apagado e os netos seguem com eles', async () => {
+      const ids = await seedMenu(enunciadoTree)
 
-        const response = await del(ids.get('Televisores')!, '?children=promote').expect(
-          200,
-        )
+      const response = await del(ids.get('Televisores')!, '?children=promote').expect(200)
 
-        expect(response.body).toStrictEqual({
-          id: ids.get('Televisores'),
-          deletedCount: 1,
-        })
-        expect(await getMenuNames()).toStrictEqual([
-          {
-            name: 'Eletrodomésticos',
-            submenus: [
-              { name: 'LCD', submenus: [{ name: '110' }, { name: '220' }] },
-              { name: 'Plasma' },
-            ],
-          },
-          enunciadoTree[1],
-        ])
-      },
-    )
+      expect(response.body).toStrictEqual({
+        id: ids.get('Televisores'),
+        deletedCount: 1,
+      })
+      expect(await getMenuNames()).toStrictEqual([
+        {
+          name: 'Eletrodomésticos',
+          submenus: [
+            { name: 'LCD', submenus: [{ name: '110' }, { name: '220' }] },
+            { name: 'Plasma' },
+          ],
+        },
+        enunciadoTree[1],
+      ])
+    })
 
-    it.fails('ao apagar uma raiz, os filhos viram itens de primeiro nível', async () => {
+    it('ao apagar uma raiz, os filhos viram itens de primeiro nível', async () => {
       const ids = await seedMenu(enunciadoTree)
 
       await del(ids.get('Informática')!, '?children=promote').expect(200)
@@ -131,22 +126,22 @@ describe('DELETE /api/v1/menu/:id', () => {
   })
 
   describe('erros', () => {
-    it.fails('devolve 404 para um id que não existe', async () => {
+    it('devolve 404 para um id que não existe', async () => {
       expectProblem(await del(UNKNOWN_ID), 404, 'MENU_NOT_FOUND')
     })
 
-    it.fails('devolve 404 ao apagar o mesmo item duas vezes', async () => {
+    it('devolve 404 ao apagar o mesmo item duas vezes', async () => {
       const id = await createMenu('Plasma')
       await del(id).expect(200)
 
       expectProblem(await del(id), 404, 'MENU_NOT_FOUND')
     })
 
-    it.fails('devolve 400 para um id que não é ObjectId', async () => {
+    it('devolve 400 para um id que não é ObjectId', async () => {
       expectProblem(await del('1'), 400, 'VALIDATION_FAILED')
     })
 
-    it.fails('devolve 400 para uma estratégia desconhecida', async () => {
+    it('devolve 400 para uma estratégia desconhecida', async () => {
       const id = await createMenu('Plasma')
 
       expectProblem(await del(id, '?children=orphan'), 400, 'VALIDATION_FAILED')

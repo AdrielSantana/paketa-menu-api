@@ -13,18 +13,15 @@ const post = (body: unknown) =>
 
 describe('POST /api/v1/menu', () => {
   describe('criação', () => {
-    it.fails(
-      'cria um item de primeiro nível e devolve 201 com o id em string',
-      async () => {
-        const response = await post({ name: 'Eletrodomésticos' }).expect(201)
+    it('cria um item de primeiro nível e devolve 201 com o id em string', async () => {
+      const response = await post({ name: 'Eletrodomésticos' }).expect(201)
 
-        expect(Object.keys(response.body)).toEqual(['id'])
-        expect(response.body.id).toMatch(/^[0-9a-f]{24}$/)
-        expect(await getMenuNames()).toStrictEqual([{ name: 'Eletrodomésticos' }])
-      },
-    )
+      expect(Object.keys(response.body)).toEqual(['id'])
+      expect(response.body.id).toMatch(/^[0-9a-f]{24}$/)
+      expect(await getMenuNames()).toStrictEqual([{ name: 'Eletrodomésticos' }])
+    })
 
-    it.fails('cria um sub-item quando recebe o id do pai em relatedId', async () => {
+    it('cria um sub-item quando recebe o id do pai em relatedId', async () => {
       const parentId = await createMenu('Eletrodomésticos')
 
       await post({ name: 'Televisores', relatedId: parentId }).expect(201)
@@ -34,13 +31,13 @@ describe('POST /api/v1/menu', () => {
       ])
     })
 
-    it.fails('aceita relatedId null como item de primeiro nível', async () => {
+    it('aceita relatedId null como item de primeiro nível', async () => {
       await post({ name: 'Informática', relatedId: null }).expect(201)
 
       expect(await getMenuNames()).toStrictEqual([{ name: 'Informática' }])
     })
 
-    it.fails('guarda o nome sem espaços sobrando e com a caixa original', async () => {
+    it('guarda o nome sem espaços sobrando e com a caixa original', async () => {
       await post({ name: '  Smart   TV ' }).expect(201)
 
       expect(await getMenuNames()).toStrictEqual([{ name: 'Smart TV' }])
@@ -48,7 +45,7 @@ describe('POST /api/v1/menu', () => {
   })
 
   describe('validação (400)', () => {
-    it.fails.each([
+    it.each([
       ['name ausente', {}],
       ['name null', { name: null }],
       ['name que não é string', { name: 123 }],
@@ -66,7 +63,7 @@ describe('POST /api/v1/menu', () => {
       expect(await getMenuNames()).toStrictEqual([])
     })
 
-    it.fails('recusa JSON malformado', async () => {
+    it('recusa JSON malformado', async () => {
       const response = await request(app)
         .post(MENU_URL)
         .set('Content-Type', 'application/json')
@@ -77,7 +74,7 @@ describe('POST /api/v1/menu', () => {
   })
 
   describe('pai inexistente (422)', () => {
-    it.fails('recusa relatedId bem formado que não aponta para um item', async () => {
+    it('recusa relatedId bem formado que não aponta para um item', async () => {
       const response = await post({ name: 'Televisores', relatedId: UNKNOWN_ID })
 
       expectProblem(response, 422, 'PARENT_NOT_FOUND')
@@ -86,7 +83,7 @@ describe('POST /api/v1/menu', () => {
   })
 
   describe('nome único (409)', () => {
-    it.fails('recusa nome repetido', async () => {
+    it('recusa nome repetido', async () => {
       await createMenu('LCD')
 
       const response = await post({ name: 'LCD' })
@@ -95,7 +92,7 @@ describe('POST /api/v1/menu', () => {
       expect(await getMenuNames()).toStrictEqual([{ name: 'LCD' }])
     })
 
-    it.fails('a unicidade é global: recusa nome repetido em outro ramo', async () => {
+    it('a unicidade é global: recusa nome repetido em outro ramo', async () => {
       const appleId = await createMenu('Apple')
       const dellId = await createMenu('Dell')
       await createMenu('Cabos', appleId)
@@ -105,7 +102,7 @@ describe('POST /api/v1/menu', () => {
       expectProblem(response, 409, 'MENU_NAME_TAKEN')
     })
 
-    it.fails.each([
+    it.each([
       ['caixa', 'lcd'],
       ['espaços nas pontas', '  LCD  '],
       ['caixa e espaços', ' Lcd '],
@@ -115,13 +112,13 @@ describe('POST /api/v1/menu', () => {
       expectProblem(await post({ name }), 409, 'MENU_NAME_TAKEN')
     })
 
-    it.fails('acento faz diferença: Informática e Informatica coexistem', async () => {
+    it('acento faz diferença: Informática e Informatica coexistem', async () => {
       await createMenu('Informática')
 
       await post({ name: 'Informatica' }).expect(201)
     })
 
-    it.fails('em criações simultâneas do mesmo nome, só uma vence', async () => {
+    it('em criações simultâneas do mesmo nome, só uma vence', async () => {
       const responses = await Promise.all(
         Array.from({ length: 10 }, () => post({ name: 'Plasma' })),
       )
