@@ -24,7 +24,7 @@ export default {
         if (!user || !user?.id)
             return res.status(400).json({ message: 'User not found' })
 
-        await User.updateOne({ id: user.id }, req.body)
+        await User.updateOne({ _id: user._id }, req.body)
         return res.json({
             id: user.id,
         })
@@ -34,7 +34,7 @@ export default {
         if (!user || !user?.id)
             return res.status(400).json({ message: 'User not found' })
 
-        await User.deleteOne({ id: user.id })
+        await User.deleteOne({ _id: user._id })
         return res.json({
             id: user.id,
         })

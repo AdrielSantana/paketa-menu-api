@@ -5,7 +5,7 @@ import app from '../../src/app'
 
 const userPayload = (name: string) => ({
   name,
-  email: `${name.toLowerCase()}@example.com`,
+  email: `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
   password: 'secret123',
 })
 
@@ -40,10 +40,9 @@ describe('CRUD de user (exemplo do boilerplate)', () => {
     await request(app).get('/user/123').expect(400)
   })
 
-  // Bug conhecido do boilerplate: o controller filtra por `{ id }`, campo que
-  // não existe no schema. `it.fails` documenta o defeito mantendo a suíte
-  // verde; a correção remove o `.fails`.
-  it.fails('PUT /user/:id altera o usuário pedido, e só ele', async () => {
+  // Regressão: o controller filtrava por `{ id }`, campo fora do schema, e o
+  // PUT/DELETE atingiam outro documento (mongoose 6) ou nenhum (mongoose 7+).
+  it('PUT /user/:id altera o usuário pedido, e só ele', async () => {
     await createUser('Alice')
     const brunoId = await createUser('Bruno')
     await createUser('Carla')
@@ -53,7 +52,7 @@ describe('CRUD de user (exemplo do boilerplate)', () => {
     expect(await listUserNames()).toEqual(['Alice', 'Bruno Editado', 'Carla'])
   })
 
-  it.fails('DELETE /user/:id remove o usuário pedido, e só ele', async () => {
+  it('DELETE /user/:id remove o usuário pedido, e só ele', async () => {
     await createUser('Alice')
     await createUser('Bruno')
     const carlaId = await createUser('Carla')
