@@ -10,7 +10,10 @@
     "test:integration": "vitest run --project integration",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
   },
   "repository": {
     "type": "git",
@@ -23,14 +26,18 @@
   },
   "homepage": "https://github.com/paketacredito/live-coding-boiler-plate#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",
+    "eslint": "^10.15.0",
+    "eslint-config-prettier": "^10.1.8",
     "mongodb-memory-server": "^11.3.0",
     "prettier": "^3.10.1",
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.1"
   },
   "dependencies": {
