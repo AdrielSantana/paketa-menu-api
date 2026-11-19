@@ -1,14 +1,23 @@
 # MongoDB para desenvolvimento local. Os testes não dependem disto:
 # usam mongodb-memory-server (ver test/setup/mongo-server.ts).
+#
+# Sobe como replica set de um nó porque o serviço usa transações (ADR 0005).
+# O healthcheck inicia o replica set na primeira subida.
 services:
   mongo:
     image: mongo:8.0
+    command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
       - '27017:27017'
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ ping: 1 }).ok']
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
       interval: 5s
       timeout: 5s
       retries: 10
