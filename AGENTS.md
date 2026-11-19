@@ -29,7 +29,9 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 `routes/` → `validation/` (middlewares yup) → `controllers/` (handlers async) → `models/` (schemas mongoose)
 
 - `src/app.ts` monta o app Express; `src/index.ts` só conecta no banco e faz o listen. Testes importam o `app`, nunca o `index`.
-- Lógica que não depende de HTTP nem de banco vai em função pura, fora do controller, e ganha teste unitário.
+- `src/domain/`: funções puras, sem HTTP nem banco (montagem e serialização da árvore, normalização do nome). Toda regra que couber aqui vem para cá e ganha teste unitário.
+- `src/errors.ts` e `src/middlewares/error-handler.ts`: todo erro sai em Problem Details (ADR 0007). Controllers e validações lançam `HttpError` (ou chamam `next` com um); não montam resposta de erro à mão.
+- `src/db/transaction.ts`: toda escrita que depende de outro documento roda em `withTransaction` (ADR 0005).
 - Não crie camadas novas (services, repositories, DI) sem um ADR que justifique.
 
 ## Convenções
