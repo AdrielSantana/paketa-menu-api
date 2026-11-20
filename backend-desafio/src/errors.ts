@@ -14,8 +14,10 @@ export class HttpError extends Error {
     code: string,
     detail: string,
     extensions: Record<string, unknown> = {},
+    cause?: unknown,
   ) {
-    super(detail)
+    // A causa não vai para o cliente: fica para o log.
+    super(detail, { cause })
     this.name = 'HttpError'
     this.status = status
     this.code = code
@@ -90,11 +92,13 @@ export const menuSubtreeTooLarge = (id: string) =>
 export const payloadTooLarge = (limit: string) =>
   new HttpError(413, 'PAYLOAD_TOO_LARGE', `The request body is larger than ${limit}.`)
 
-export const serviceUnavailable = () =>
+export const serviceUnavailable = (cause?: unknown) =>
   new HttpError(
     503,
     'SERVICE_UNAVAILABLE',
     'The service is temporarily unable to handle the request. Try again shortly.',
+    {},
+    cause,
   )
 
 export const internalError = () =>

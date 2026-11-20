@@ -14,7 +14,7 @@ O ADR 0010 passou a responder 503 quando o banco cai. Falta um jeito de pergunta
 **Logs em JSON, uma linha por evento, na saída padrão.** Um módulo pequeno (`src/logger.ts`), sem dependência nova. Cada linha tem `level`, `time`, `message` e os campos do evento.
 
 - Uma linha por requisição, ao terminar: `requestId`, método, caminho (sem query string), status e duração. O nível acompanha o status: `info`, `warn` para 4xx e `error` para 5xx.
-- Uma linha por erro 5xx, com o erro original (nome, mensagem, código e stack).
+- Uma linha por erro 5xx, com o erro original (nome, mensagem, código e stack) e até três causas encadeadas: o motivo real costuma estar na causa.
 - Corpo de requisição e de resposta não são registrados.
 - Credenciais em URLs (`mongodb://usuario:senha@host`) são mascaradas antes de gravar: mensagens de erro de conexão costumam carregar a URL.
 - `LOG_LEVEL` (`debug`, `info`, `warn`, `error`, `silent`) controla o volume; o padrão é `info` e os testes rodam em `silent`.

@@ -2,6 +2,7 @@ import request from 'supertest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
+import { logger } from '../../src/logger'
 import { expectProblem } from '../support/menu'
 
 afterEach(() => {
@@ -29,4 +30,17 @@ describe('erros fora do caminho feliz (ADR 0007)', () => {
     // O servidor continua atendendo.
     await request(app).get('/user').expect(200)
   })
+
+  // O roteador lança um erro com status 400 ao decodificar o parâmetro.
+  it.each(['/api/v1/menu/%ZZ', '/user/%ZZ'])(
+    'parâmetro de URL malformado (%s) é erro do cliente, não 500',
+    async url => {
+      const log = vi.spyOn(logger, 'error')
+
+      const response = await request(app).delete(url)
+
+      expectProblem(response, 400, 'REQUEST_REJECTED')
+      expect(log).not.toHaveBeenCalled()
+    },
+  )
 })

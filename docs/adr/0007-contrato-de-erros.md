@@ -32,6 +32,7 @@ Quem consome a API precisa distinguir os erros por código, sem depender do text
 | Status | Quando | `code` |
 |---|---|---|
 | 400 | Corpo, parâmetro ou query inválidos; JSON malformado | `VALIDATION_FAILED`, `MALFORMED_JSON` |
+| 4xx | Requisição recusada pelo Express antes de chegar à rota, como URL com codificação inválida | `REQUEST_REJECTED` |
 | 404 | O recurso da URL não existe | `MENU_NOT_FOUND`, `ROUTE_NOT_FOUND` |
 | 409 | A requisição é válida, mas conflita com o estado atual | `MENU_NAME_TAKEN`, `MENU_HAS_SUBMENUS`, `MENU_LIMIT_REACHED`, `MENU_SUBTREE_TOO_LARGE` |
 | 413 | Corpo maior que 10 KB | `PAYLOAD_TOO_LARGE` |

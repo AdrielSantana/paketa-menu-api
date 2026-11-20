@@ -27,13 +27,14 @@ const toHttpError = (error: unknown): HttpError => {
   const { type, status, expose, message } = (error ?? {}) as BodyParserError
   if (type === 'entity.parse.failed') return malformedJson()
   if (type === 'entity.too.large') return payloadTooLarge(REQUEST_BODY_LIMIT)
-  // Demais erros do body-parser já trazem status e mensagem segura para o
-  // cliente.
-  if (expose && status && status >= 400 && status < 500) {
+  // Demais erros do Express e do body-parser que se declaram como erro do
+  // cliente, como um parâmetro de URL malformado. A mensagem só é repassada
+  // quando a biblioteca a marca como segura (`expose`).
+  if (status && status >= 400 && status < 500) {
     return new HttpError(
       status,
       'REQUEST_REJECTED',
-      message ?? 'The request was rejected.',
+      expose && message ? message : 'The request was rejected.',
     )
   }
 

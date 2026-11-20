@@ -13,7 +13,7 @@ export default {
       if (!db) throw new Error('database connection not established')
       await db.command({ ping: 1, maxTimeMS: config.dbTimeoutMs })
     } catch (error) {
-      throw Object.assign(serviceUnavailable(), { cause: error })
+      throw serviceUnavailable(error)
     }
 
     return res.status(200).json({ status: 'ok' })

@@ -17,7 +17,19 @@ const CREDENTIALS_IN_URL = /(\w[\w+.-]*:\/\/)[^\s/:@]+:[^\s/@]+@/g
 export const redactSecrets = (text: string): string =>
   text.replace(CREDENTIALS_IN_URL, '$1***:***@')
 
-export const serializeError = (error: unknown) => {
+interface SerializedError {
+  name?: string
+  message: string
+  code?: unknown
+  stack?: string
+  cause?: SerializedError
+}
+
+// Quantas causas encadeadas vão para o log. O motivo real de uma falha
+// costuma estar na causa, não no erro que a embrulhou.
+const MAX_CAUSE_DEPTH = 3
+
+export const serializeError = (error: unknown, depth = 0): SerializedError => {
   if (!(error instanceof Error)) return { message: String(error) }
 
   const { code } = error as { code?: unknown }
@@ -26,6 +38,9 @@ export const serializeError = (error: unknown) => {
     message: error.message,
     ...(code === undefined ? {} : { code }),
     stack: error.stack,
+    ...(error.cause === undefined || depth >= MAX_CAUSE_DEPTH
+      ? {}
+      : { cause: serializeError(error.cause, depth + 1) }),
   }
 }
 

@@ -31,9 +31,15 @@ describe('GET /health', () => {
   })
 
   it('devolve 503 quando o banco não responde ao ping', async () => {
+    const logs = captureLogs()
     vi.spyOn(Menu.db.db!, 'command').mockRejectedValueOnce(new Error('sem resposta'))
 
     expectProblem(await request(app).get('/health'), 503, 'SERVICE_UNAVAILABLE')
+    // O motivo real da falha fica no log, não só a mensagem genérica do 503.
+    expect(logs()[0]).toMatchObject({
+      message: 'request failed',
+      error: { cause: { message: 'sem resposta' } },
+    })
   })
 })
 

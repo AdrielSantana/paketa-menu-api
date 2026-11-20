@@ -38,4 +38,23 @@ describe('serializeError', () => {
   it('aceita o que não é Error', () => {
     expect(serializeError('texto solto')).toStrictEqual({ message: 'texto solto' })
   })
+
+  it('leva a causa encadeada, que é onde costuma estar o motivo real', () => {
+    const root = new Error('connect ECONNREFUSED')
+    const error = new Error('indisponível', {
+      cause: new Error('ping falhou', { cause: root }),
+    })
+
+    expect(serializeError(error)).toMatchObject({
+      message: 'indisponível',
+      cause: { message: 'ping falhou', cause: { message: 'connect ECONNREFUSED' } },
+    })
+  })
+
+  it('não segue uma cadeia de causas sem fim', () => {
+    const loop = new Error('em ciclo')
+    loop.cause = loop
+
+    expect(JSON.stringify(serializeError(loop)).length).toBeLessThan(20_000)
+  })
 })
