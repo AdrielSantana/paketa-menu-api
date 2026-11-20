@@ -2,7 +2,7 @@
 
 - Certifique-se que tem o [Node.js](https://nodejs.org/) 24 instalado (a versão está em `.nvmrc`) e o [Docker](https://www.docker.com/) para o banco local.
 - Este projeto utiliza Node.js com [Typescript](https://www.typescriptlang.org/).
-- Disponibilizamos duas coleções prontas localizadas na pasta `.docs` para importar no [Insomnia](https://insomnia.rest/) e no [Postman](https://www.postman.com/) para realizar os testes, porém sinta-se à vontade para utilizar qualquer plataforma de cliente de API que preferir.
+- A pasta `.docs` traz as coleções originais do boilerplate para importar no [Insomnia](https://insomnia.rest/) e no [Postman](https://www.postman.com/). Elas cobrem só as rotas de `/user`; as rotas de menu estão nos exemplos em `curl` da seção [A API](../readme.md#a-api) do readme, que os dois clientes importam colando o comando. Sinta-se à vontade para utilizar qualquer plataforma de cliente de API que preferir.
 - Crie um arquivo `.env` na raíz do projeto copiando o `.env.example` (`cp .env.example .env`). Qualquer variável de ambiente utilizada deve ser declarada neste arquivo e chamada no projeto através do comando `process.env` (ex. `process.env.MONGO_URL`).
 - Instale as dependências com `npm ci` (usa as versões exatas do `package-lock.json`).
 - Suba o [MongoDB](https://www.mongodb.com/) local com `npm run db:up` (docker compose). Para usar outro banco, ajuste `MONGO_URL` no `.env`.
