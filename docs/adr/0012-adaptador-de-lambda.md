@@ -22,12 +22,14 @@ O enunciado fixa Express sobre a arquitetura do boilerplate, que sobe um servido
 |---|---|
 | Conecta no banco uma vez por instância e reaproveita entre invocações | Conectar a cada requisição custa tempo e multiplica conexões no cluster |
 | Se a conexão falha, responde 503 em Problem Details e tenta de novo na invocação seguinte | Uma instância que falhou no primeiro acesso não fica quebrada para sempre |
-| `callbackWaitsForEmptyEventLoop = false` | A conexão aberta manteria o event loop ocupado e a invocação terminaria por timeout |
-| Request id = id da invocação, quando o cliente não manda `X-Request-Id` | É o id que o Lambda grava no CloudWatch; os logs do serviço e os da plataforma se encontram |
+| Handler `async` com dois parâmetros, sem callback | O runtime Node 24 só aceita esse formato; handler com callback vale até o Node 22 (documentação da AWS, conferida em 2026-11-19). Com handler `async`, a resposta sai quando a promise resolve, e a conexão aberta não segura a invocação |
+| Request id = id da invocação, quando o cliente não manda um `X-Request-Id` em formato seguro. Vale também para o 503 de conexão | É o id que o Lambda grava no CloudWatch; os logs do serviço e os da plataforma se encontram |
 | `maxPoolSize: 2` | Uma instância atende uma requisição por vez; o padrão do driver é 100 |
 | `MONGO_URL` obrigatória, conferida na inicialização | Falta de configuração aparece no deploy, não na primeira requisição |
 
-O adaptador recebe a função de conexão por parâmetro. Os testes invocam o handler com eventos no formato do API Gateway (HTTP API e REST API) contra o mesmo MongoDB em memória dos demais testes.
+O adaptador recebe a função de conexão por parâmetro. Os testes invocam o handler com eventos no formato do API Gateway (HTTP API e REST API) e do ALB com cabeçalhos multi-valor, contra o mesmo MongoDB em memória dos demais testes.
+
+**Pacote.** `npm ci`, `npm run build` e depois `npm ci --omit=dev`: vão para o pacote `build/` e `node_modules/` só com as dependências de produção.
 
 ## Alternativas consideradas
 
@@ -47,7 +49,8 @@ O adaptador recebe a função de conexão por parâmetro. Os testes invocam o ha
 Verificado em 2026-11-19:
 
 - o handler compilado (`build/lambda.js`), carregado por Node puro e invocado com eventos de HTTP API contra o MongoDB do docker-compose: primeira invocação em 54 ms (com a conexão), as seguintes em 2 a 7 ms;
-- sem `MONGO_URL`, o módulo falha ao carregar.
+- sem `MONGO_URL`, o módulo falha ao carregar;
+- em um clone limpo, a sequência do pacote (`npm ci`, `npm run build`, `npm ci --omit=dev`) termina sem erro e o handler compilado carrega só com as dependências de produção.
 
 Não foi feito: deploy em uma conta AWS, infraestrutura como código e teste contra um cluster DocumentDB.
 

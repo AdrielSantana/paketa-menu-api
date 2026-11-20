@@ -8,12 +8,14 @@ import { logger } from '../logger'
 // tamanho que polua o log e a resposta.
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/
 
+export const isSafeRequestId = (value: string): boolean => SAFE_REQUEST_ID.test(value)
+
 const HEALTH_PATH = '/health'
 
 // Dá um id a cada requisição e registra uma linha quando ela termina (ADR 0011).
 export const requestContext: RequestHandler = (req, res, next) => {
   const received = req.get('x-request-id')
-  const requestId = received && SAFE_REQUEST_ID.test(received) ? received : randomUUID()
+  const requestId = received && isSafeRequestId(received) ? received : randomUUID()
   res.locals.requestId = requestId
   res.set('X-Request-Id', requestId)
 

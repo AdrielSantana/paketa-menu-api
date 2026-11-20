@@ -90,14 +90,38 @@ const restApiEvent = (method: string, path: string, options: RequestOptions = {}
   }
 }
 
+// Evento de ALB com "multi value headers" ligado: só existe multiValueHeaders.
+const albEvent = (method: string, path: string, options: RequestOptions = {}) => ({
+  requestContext: {
+    elb: {
+      targetGroupArn:
+        'arn:aws:elasticloadbalancing:sa-east-1:123456789012:targetgroup/menu/6d0ecf831eec9f09',
+    },
+  },
+  httpMethod: method,
+  path,
+  multiValueQueryStringParameters: Object.fromEntries(
+    Object.entries(options.query ?? {}).map(([key, value]) => [key, [value]]),
+  ),
+  multiValueHeaders: Object.fromEntries(
+    Object.entries({ 'content-type': 'application/json', ...options.headers }).map(
+      ([key, value]) => [key, [value]],
+    ),
+  ),
+  body: options.body === undefined ? '' : JSON.stringify(options.body),
+  isBase64Encoded: false,
+})
+
 // A conexão já foi aberta pelo setup dos testes.
 const alreadyConnected = () => Promise.resolve()
 
-type Event = ReturnType<typeof httpApiEvent> | ReturnType<typeof restApiEvent>
+type Event =
+  | ReturnType<typeof httpApiEvent>
+  | ReturnType<typeof restApiEvent>
+  | ReturnType<typeof albEvent>
 
 const invoke = async (handler: ReturnType<typeof createHandler>, event: Event) => {
-  const result = await handler(event, fakeContext(), () => {})
-  if (!result) throw new Error('o handler não devolveu resposta')
+  const result = await handler(event, fakeContext())
   // HTTP API devolve `headers`; REST API devolve `multiValueHeaders`.
   const headers = Object.fromEntries(
     [
@@ -242,15 +266,57 @@ describe('handler de Lambda', () => {
     expect(connect).toHaveBeenCalledTimes(2)
   })
 
-  it('não segura a invocação esperando o event loop esvaziar', async () => {
-    const context = fakeContext()
+  // O runtime Node 24 do Lambda não aceita mais handler com callback
+  // (documentação da AWS, conferida em 2026-11-19).
+  it('o handler é async com dois parâmetros, sem callback', () => {
+    expect(createHandler(alreadyConnected).length).toBeLessThanOrEqual(2)
+  })
 
-    await createHandler(alreadyConnected)(
-      httpApiEvent('GET', MENU_PATH),
-      context,
-      () => {},
+  it('atende eventos de ALB com cabeçalhos multi-valor, sem trocar o formato da resposta', async () => {
+    const handler = createHandler(alreadyConnected)
+
+    const response = await invoke(
+      handler,
+      albEvent('GET', MENU_PATH, { headers: { 'X-Request-Id': 'pedido-via-alb' } }),
     )
 
-    expect(context.callbackWaitsForEmptyEventLoop).toBe(false)
+    expect(response.status).toBe(200)
+    expect(response.headers['x-request-id']).toBe('pedido-via-alb')
+    // Nesse modo o ALB só lê multiValueHeaders.
+    expect(response.raw.headers).toBeUndefined()
+    expect(response.raw.multiValueHeaders).toMatchObject({
+      'content-type': [expect.stringMatching(/^application\/json/)],
+    })
+  })
+
+  it('X-Request-Id em formato inseguro é trocado pelo id da invocação', async () => {
+    const response = await invoke(
+      createHandler(alreadyConnected),
+      httpApiEvent('GET', '/nao-existe', {
+        headers: { 'x-request-id': 'id com espaço' },
+      }),
+    )
+
+    expect(response.headers['x-request-id']).toBe(AWS_REQUEST_ID)
+    expect(response.body!.requestId).toBe(AWS_REQUEST_ID)
+  })
+
+  it.each([
+    ['HTTP API', httpApiEvent],
+    ['ALB multi-valor', albEvent],
+  ])('no %s, o 503 de conexão mantém o request id do cliente', async (_, event) => {
+    const connect = vi
+      .fn(alreadyConnected)
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+
+    const failed = await invoke(
+      createHandler(connect),
+      event('GET', MENU_PATH, { headers: { 'x-request-id': 'pedido-do-cliente' } }),
+    )
+
+    expect(failed.status).toBe(503)
+    expect(failed.headers['x-request-id']).toBe('pedido-do-cliente')
+    expect(failed.headers['retry-after']).toBe(String(RETRY_AFTER_SECONDS))
+    expect(failed.body!.requestId).toBe('pedido-do-cliente')
   })
 })
