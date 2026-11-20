@@ -21,6 +21,7 @@ Dentro de `backend-desafio/`:
 | `npm test` | Todos os testes (sobe um MongoDB em memória, não precisa de Docker) |
 | `npm run test:unit` / `npm run test:integration` | Um degrau da pirâmide por vez |
 | `npm run db:up` e `npm run start` | Banco local (docker compose) e servidor em modo watch |
+| `npm run bench:read` | Refaz as medições do ADR 0009 (não faz parte do check) |
 
 ## Arquitetura
 
