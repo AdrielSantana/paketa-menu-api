@@ -13,7 +13,8 @@ const positiveInteger = (env: Env, name: string, fallback: number): number => {
   return value
 }
 
-const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
+// Em ordem de severidade: o logger compara pela posição.
+export const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
 export type LogLevel = (typeof LOG_LEVELS)[number]
 
 const logLevel = (env: Env, fallback: LogLevel): LogLevel => {
@@ -34,6 +35,8 @@ export const REQUEST_BODY_LIMIT = '10kb'
 export const RETRY_AFTER_SECONDS = 5
 
 export const loadConfig = (env: Env) => ({
+  /** Porta do servidor HTTP. O Lambda não usa. */
+  port: positiveInteger(env, 'PORT', 8000),
   /** Teto de itens do menu: mantém o GET dentro de um tamanho conhecido. */
   menuMaxItems: positiveInteger(env, 'MENU_MAX_ITEMS', DEFAULT_MENU_MAX_ITEMS),
   /** Tempo máximo de uma operação no banco e de espera por conexão. */

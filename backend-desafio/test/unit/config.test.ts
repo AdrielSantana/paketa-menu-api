@@ -5,6 +5,7 @@ import { loadConfig } from '../../src/config'
 describe('loadConfig', () => {
   it('sem variáveis, usa os padrões do ADR 0010', () => {
     expect(loadConfig({})).toStrictEqual({
+      port: 8000,
       menuMaxItems: 10_000,
       dbTimeoutMs: 5_000,
       logLevel: 'info',
@@ -17,8 +18,18 @@ describe('loadConfig', () => {
 
   it('lê os valores do ambiente', () => {
     expect(
-      loadConfig({ MENU_MAX_ITEMS: '250', DB_TIMEOUT_MS: '1500', LOG_LEVEL: 'warn' }),
-    ).toStrictEqual({ menuMaxItems: 250, dbTimeoutMs: 1500, logLevel: 'warn' })
+      loadConfig({
+        PORT: '3000',
+        MENU_MAX_ITEMS: '250',
+        DB_TIMEOUT_MS: '1500',
+        LOG_LEVEL: 'warn',
+      }),
+    ).toStrictEqual({
+      port: 3000,
+      menuMaxItems: 250,
+      dbTimeoutMs: 1500,
+      logLevel: 'warn',
+    })
   })
 
   it.each(['abc', '0', '-1', '1.5', '1e3', ' 10', '99999999999999999999'])(
@@ -28,6 +39,7 @@ describe('loadConfig', () => {
         `MENU_MAX_ITEMS must be a positive integer, got "${value}"`,
       )
       expect(() => loadConfig({ DB_TIMEOUT_MS: value })).toThrow('DB_TIMEOUT_MS')
+      expect(() => loadConfig({ PORT: value })).toThrow('PORT')
     },
   )
 
