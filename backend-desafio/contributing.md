@@ -8,14 +8,16 @@
 - Suba o [MongoDB](https://www.mongodb.com/) local com `npm run db:up` (docker compose). Para usar outro banco, ajuste `MONGO_URL` no `.env`.
 - Inicialize o projeto através do comando `npm run start`.
 - O projeto utiliza o [tsx](https://tsx.is/) em modo watch, logo as atualizações feitas ao código durante o desenvolvimento reiniciam o servidor sem intervenção manual (com exceção às alterações no arquivo `.env`. Neste caso é preciso encerrar a execução do servidor e executar o comando `npm run start` novamente).
-- Caso tenha tudo ocorrido de acordo, o terminal deverá apresentar a seguinte saída:
+- Caso tenha tudo ocorrido de acordo, o terminal deverá apresentar a seguinte saída (os logs do serviço são linhas JSON):
 
 ```sh
-⚡️[Paketá Credito Live-Coding BoilerPlate]: Server is running at http://localhost:8000
-⚡️[Paketá Credito Live-Coding BoilerPlate]: MongoDB connection established successfully
+{"level":"info","time":"2026-11-20T00:58:44.336Z","message":"database connected"}
+{"level":"info","time":"2026-11-20T00:58:44.337Z","message":"server listening","port":8000}
 ```
+
+- `curl localhost:8000/health` deve responder `{"status":"ok"}`.
 
 # Como validar uma mudança?
 
-- `npm run check` roda, nesta ordem, formatação (Prettier), lint (ESLint), tipos (`tsc --noEmit`) e testes (Vitest). É o mesmo comando do CI.
+- `npm run check` roda, nesta ordem, formatação (Prettier), lint (ESLint), tipos (`tsc --noEmit`), testes (Vitest) e build. É o mesmo comando do CI.
 - `npm test` roda só os testes. Eles sobem um MongoDB em memória e não precisam do Docker.
