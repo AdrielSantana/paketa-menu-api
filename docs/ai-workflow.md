@@ -34,7 +34,7 @@ O remoto da Paketá também foi configurado só para leitura da branch `boilerpl
 1. **Ambientação.** Antes de mudar qualquer coisa, o agente rodou o boilerplate e escreveu testes para o comportamento existente. Assim apareceram quatro defeitos, todos reproduzidos: o `PUT` e o `DELETE` de `user` filtravam por um campo errado; uma rejeição em handler assíncrono derrubava o processo; a compilação quebrava em uma instalação limpa; e um JSON malformado devolvia uma página HTML com stack trace.
 2. **Decisão antes de código.** Cada tema passou por uma rodada de opções, e a minha escolha foi para um ADR.
 3. **Especificação antes de implementação.** A especificação de aceitação da API (41 testes, só HTTP) foi commitada antes da implementação, marcada como falha esperada, para a suíte seguir verde.
-4. **Conferência por mutação.** Um teste que passa de primeira não prova nada. Depois de cada entrega, o agente injetou defeitos de propósito no código e conferiu se os testes pegavam: 52 de 54.
+4. **Conferência por mutação.** Um teste que passa de primeira não prova nada. Depois de cada entrega, o agente injetou defeitos de propósito no código e conferiu se os testes pegavam: 58 de 60.
 5. **Medir antes de afirmar.** Limites e comparações de desempenho foram medidos, e o script de medição está no repositório (`npm run bench:read`).
 6. **Teste com o servidor real.** Além da suíte, os fluxos foram executados com `curl` contra o servidor e o MongoDB do docker-compose, incluindo parar o banco no meio.
 
@@ -81,6 +81,19 @@ Com tudo pronto, rodei uma revisão automática de código sobre todo o trabalho
 - o hook que barra comandos proibidos tinha brechas (`git commit -n`, por exemplo).
 
 Cada achado foi primeiro reproduzido em um teste que falhava, e só então corrigido. O ponto de entrada do servidor ganhou testes que sobem o processo de verdade.
+
+### A passada de simplificação
+
+Por último, quatro agentes leram o código atrás de duplicação, complexidade desnecessária, trabalho desperdiçado e correção no nível errado, sem procurar bugs. O que entrou não muda o contrato da API:
+
+- a resposta de erro passou a ser montada em um lugar só, usado pelo middleware e pelo adaptador de Lambda;
+- as três regras do nome (vazio, tamanho, caracteres proibidos) foram para o domínio, com teste unitário; a validação só encaixa as regras no yup;
+- o `DELETE` com `cascade` ou `promote` deixou de fazer uma contagem que não usava;
+- a expressão regular que mascara credenciais no log custava o quadrado do tamanho do texto, e o caminho da URL passa por ela a cada requisição. Ganhou limite e teste;
+- a `PORT` passou a ser validada no boot, como as outras variáveis;
+- os testes ganharam helpers únicos de requisição, no lugar de cópias em quatro arquivos.
+
+Recusei o que mudava comportamento decidido em ADR ou trocava clareza por poucas linhas. Seis defeitos injetados depois da passada foram todos detectados.
 
 ## Limites do que foi feito
 
