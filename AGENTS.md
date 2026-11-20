@@ -31,6 +31,7 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 
 - `src/app.ts` monta o app Express. Há dois pontos de entrada sobre ele: `src/index.ts` (servidor HTTP) e `src/lambda.ts` (handler de Lambda, via `src/adapters/lambda.ts`, ADR 0012). Testes importam o `app` ou o adaptador, nunca os pontos de entrada.
 - `npm run build` compila `src/` para `build/`, que é o que roda fora do desenvolvimento.
+- `src/env.ts` carrega o `.env` e é sempre o primeiro import de `src/index.ts`: a configuração é lida de `process.env` assim que `src/config.ts` carrega.
 - `src/domain/`: funções puras, sem HTTP nem banco (montagem e serialização da árvore, normalização do nome). Toda regra que couber aqui vem para cá e ganha teste unitário.
 - `src/errors.ts` e `src/middlewares/error-handler.ts`: todo erro sai em Problem Details (ADR 0007). Controllers e validações lançam `HttpError` (ou chamam `next` com um); não montam resposta de erro à mão.
 - `src/db/transaction.ts`: toda escrita que depende de outro documento roda em `withTransaction` (ADR 0005).
@@ -74,7 +75,7 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 
 | Quando | O que roda | Onde está |
 |---|---|---|
-| Antes de um comando Bash do agente | Bloqueia os comandos da lista "Nunca" | `.claude/hooks/guard-bash.mjs` |
+| Antes de um comando Bash do agente | Bloqueia os comandos da lista "Nunca" (casos em `guard-bash.test.mjs`) | `.claude/hooks/guard-bash.mjs` |
 | Depois de cada arquivo editado pelo agente | Prettier e ESLint no arquivo | `.claude/hooks/format-edited-file.mjs` |
 | Antes de o agente encerrar um turno | `npm run check`; se falhar, o agente não encerra | `.claude/hooks/check-before-stop.mjs` |
 | Em cada `git commit` | lint-staged e typecheck | `backend-desafio/.husky/pre-commit` |
