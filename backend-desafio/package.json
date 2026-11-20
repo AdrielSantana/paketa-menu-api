@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
-    "prepare": "cd .. && husky backend-desafio/.husky",
+    "prepare": "cd .. && husky backend-desafio/.husky || true",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "bench:read": "tsx scripts/bench-menu-read.ts",
