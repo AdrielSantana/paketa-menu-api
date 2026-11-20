@@ -12,7 +12,7 @@ Tudo dentro de `backend-desafio/`, com Node 24 (`.nvmrc`).
 
 ```sh
 npm ci
-npm run check          # formatação, lint, tipos, 144 testes e build. Não precisa de Docker
+npm run check          # formatação, lint, tipos, 164 testes e build. Não precisa de Docker
 ```
 
 Para subir o servidor:
@@ -54,7 +54,7 @@ Erros saem em Problem Details (RFC 9457), com um `code` estável e o `requestId`
 
 | Status | `code` |
 |---|---|
-| 400 | `VALIDATION_FAILED`, `MALFORMED_JSON` |
+| 400 | `VALIDATION_FAILED`, `MALFORMED_JSON`, `REQUEST_REJECTED` |
 | 404 | `MENU_NOT_FOUND`, `ROUTE_NOT_FOUND` |
 | 409 | `MENU_NAME_TAKEN`, `MENU_HAS_SUBMENUS`, `MENU_LIMIT_REACHED`, `MENU_SUBTREE_TOO_LARGE` |
 | 413 | `PAYLOAD_TOO_LARGE` |
@@ -96,7 +96,7 @@ A primeira versão lia o menu com `$graphLookup`. Medi com 1 milhão de itens: 1
 ## Limites conhecidos
 
 - **Tamanho:** 10 mil itens (`MENU_MAX_ITEMS`). No pior caso a resposta tem 3,6 MB, abaixo dos 6 MB de uma invocação síncrona de Lambda.
-- **Nome:** 1 a 100 caracteres, sem caracteres de controle. A unicidade é global, como pede o enunciado.
+- **Nome:** 1 a 100 caracteres, sem caracteres de controle. A unicidade é global, como pede o enunciado, e ignora maiúsculas, espaços e caracteres invisíveis.
 - **Ordem:** irmãos saem na ordem de criação. Não há campo de posição.
 - **DocumentDB:** a cascata usa `$graphLookup`, que só existe a partir do DocumentDB 8.0.2. Nada foi executado contra um cluster DocumentDB; o que os ADRs dizem sobre ele vem da documentação da AWS, com a data da consulta.
 
@@ -106,9 +106,10 @@ A primeira versão lia o menu com `$graphLookup`. Medi com 1 milhão de itens: 1
 
 ## Testes e guardas
 
-- **144 testes**: 56 unitários (incluindo testes de propriedades com fast-check) e 88 de integração (HTTP com supertest, eventos de Lambda e MongoDB 8.0 em memória, em replica set).
+- **164 testes**: 65 unitários (incluindo testes de propriedades com fast-check) e 99 de integração (HTTP com supertest, eventos de Lambda, o servidor subindo em um processo de verdade e MongoDB 8.0 em memória, em replica set).
 - **Concorrência:** criar um sub-item enquanto o pai é apagado nunca deixa órfão. O teste falha se a trava da transação for removida.
 - **Conferência por mutação:** em cada entrega injetei defeitos de propósito no código e conferi se os testes pegavam. De 54 defeitos, 52 foram detectados; os dois que passaram mostraram um trecho redundante e uma asserção fraca, ambos corrigidos.
+- **Revisão independente:** uma revisão automática de todo o código apontou 10 problemas. Os 10 foram reproduzidos em teste antes de corrigir.
 - **`npm run check`** é a definição de pronto e roda em três lugares: nos hooks do agente de IA, no pre-commit (husky) e no CI (GitHub Actions).
 
 As regras que o agente de IA segue neste repositório estão em [AGENTS.md](./AGENTS.md).

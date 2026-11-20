@@ -67,6 +67,21 @@ Erros do agente que não chegaram ao resultado, e o que cada um mudou no process
 - **Código redundante e asserção fraca.** A conferência por mutação mostrou uma opção duplicada em uma agregação e um teste que comparava dois valores ausentes como iguais.
 - **Uma linha fora do formato no log.** O teste com o servidor real mostrou a biblioteca de variáveis de ambiente escrevendo texto livre na saída que deveria ter só JSON.
 
+### A revisão independente
+
+Com tudo pronto, rodei uma revisão automática de código sobre todo o trabalho, feita por um agente separado, sem o contexto de quem escreveu. Ela apontou 10 problemas que os testes e a conferência por mutação não tinham pegado, porque estavam em caminhos que nenhum teste exercitava:
+
+- o `.env` era lido depois da configuração no modo de desenvolvimento, então um valor inválido era ignorado;
+- o servidor registrava "ouvindo" mesmo quando a porta estava ocupada;
+- o handler de Lambda declarava um parâmetro de callback, que o runtime Node 24 não aceita, e quebrava o formato de resposta do ALB com cabeçalhos multi-valor;
+- uma URL com codificação inválida virava erro 500;
+- o motivo real de uma falha no health check não chegava ao log;
+- um caractere invisível no nome burlava a unicidade;
+- a instalação só com dependências de produção falhava por causa do husky;
+- o hook que barra comandos proibidos tinha brechas (`git commit -n`, por exemplo).
+
+Cada achado foi primeiro reproduzido em um teste que falhava, e só então corrigido. O ponto de entrada do servidor ganhou testes que sobem o processo de verdade.
+
 ## Limites do que foi feito
 
 - Nada foi executado em DocumentDB nem em uma conta AWS. O que os ADRs dizem sobre os dois vem da documentação, com a data da consulta.
