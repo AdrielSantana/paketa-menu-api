@@ -16,8 +16,6 @@ describe('erros fora do caminho feliz (ADR 0007)', () => {
   // No boilerplate original este request derrubava o processo: a rejeição do
   // handler async não era capturada (Express 4) e o Node encerrava.
   it('erro inesperado devolve 500 sem vazar detalhes internos', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
     const response = await request(app).post('/user').send({
       _id: 'abc',
       name: 'Dora',

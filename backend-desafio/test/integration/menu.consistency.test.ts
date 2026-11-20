@@ -2,6 +2,7 @@ import request from 'supertest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
+import { logger } from '../../src/logger'
 import Menu from '../../src/models/menu'
 import { enunciadoTree } from '../fixtures/enunciado'
 import {
@@ -114,7 +115,6 @@ describe('concorrência (ADR 0005)', () => {
 describe('atomicidade', () => {
   it('se a exclusão falha no meio da promoção, nada muda', async () => {
     const ids = await seedMenu(enunciadoTree)
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(Menu, 'deleteMany').mockRejectedValueOnce(new Error('falha simulada'))
 
     const response = await del(ids.get('Televisores')!, '?children=promote')
@@ -128,7 +128,6 @@ describe('atomicidade', () => {
   it('se a criação do sub-item falha depois de travar o pai, nada é gravado', async () => {
     const parentId = await createMenu('Eletrodomésticos')
     const before = await Menu.findById(parentId).lean()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(Menu, 'create').mockRejectedValueOnce(new Error('falha simulada'))
 
     expectProblem(await post('Televisores', parentId), 500, 'INTERNAL_ERROR')
@@ -156,7 +155,7 @@ describe('itens inalcançáveis', () => {
 
 describe('erro inesperado', () => {
   it('é registrado em log e respondido sem detalhes', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const log = vi.spyOn(logger, 'error')
     vi.spyOn(Menu, 'find').mockImplementationOnce(() => {
       throw new Error('conexão perdida com mongodb://usuario:senha@host')
     })
@@ -165,7 +164,10 @@ describe('erro inesperado', () => {
 
     expectProblem(response, 500, 'INTERNAL_ERROR')
     expect(JSON.stringify(response.body)).not.toContain('senha')
-    expect(log).toHaveBeenCalledOnce()
+    expect(log).toHaveBeenCalledWith(
+      'request failed',
+      expect.objectContaining({ code: 'INTERNAL_ERROR' }),
+    )
   })
 })
 

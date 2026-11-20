@@ -11,6 +11,7 @@ import {
   serviceUnavailable,
   toProblem,
 } from '../errors'
+import { logger, serializeError } from '../logger'
 
 interface BodyParserError {
   type?: string
@@ -54,10 +55,22 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   const httpError = toHttpError(error)
 
-  // O erro original só vai para o log; o cliente recebe a versão sem detalhes.
-  if (httpError.status >= 500) console.error(error)
+  const requestId: unknown = res.locals.requestId
+
+  // O erro original só vai para o log; o cliente recebe a versão sem detalhes
+  // e o id para informar ao suporte.
+  if (httpError.status >= 500) {
+    logger.error('request failed', {
+      requestId,
+      code: httpError.code,
+      error: serializeError(error),
+    })
+  }
 
   if (httpError.status === 503) res.set('Retry-After', String(RETRY_AFTER_SECONDS))
 
-  res.status(httpError.status).type('application/problem+json').json(toProblem(httpError))
+  res
+    .status(httpError.status)
+    .type('application/problem+json')
+    .json({ ...toProblem(httpError), requestId })
 }

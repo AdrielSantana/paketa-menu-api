@@ -34,6 +34,7 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 - `src/errors.ts` e `src/middlewares/error-handler.ts`: todo erro sai em Problem Details (ADR 0007). Controllers e validações lançam `HttpError` (ou chamam `next` com um); não montam resposta de erro à mão.
 - `src/db/transaction.ts`: toda escrita que depende de outro documento roda em `withTransaction` (ADR 0005).
 - `src/config.ts`: limites lidos do ambiente e validados no boot. `src/db/connect.ts` é o único ponto de conexão (tempos máximos, índices) e `src/db/errors.ts` classifica os erros do banco (ADR 0010).
+- `src/logger.ts` e `src/middlewares/request-context.ts`: logs em JSON com request id (ADR 0011). Em `src/` não se usa `console` (o lint barra); nunca registre corpo de requisição.
 - Todo limite novo segue o ADR 0010: explícito, com erro que diz o que fazer e teste que falha sem a guarda.
 - Não crie camadas novas (services, repositories, DI) sem um ADR que justifique.
 

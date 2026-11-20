@@ -18,6 +18,12 @@ export default defineConfig(
       '@typescript-eslint/no-floating-promises': 'error',
     },
   },
+  {
+    // O serviço registra pelo logger estruturado (ADR 0011). Scripts e testes
+    // podem usar console.
+    files: ['src/**/*.ts'],
+    rules: { 'no-console': 'error' },
+  },
   // Desliga regras de estilo que brigariam com o Prettier.
   prettier,
 )

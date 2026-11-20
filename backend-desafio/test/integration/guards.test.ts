@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
 import { DEFAULT_MENU_MAX_ITEMS, RETRY_AFTER_SECONDS, config } from '../../src/config'
+import { logger } from '../../src/logger'
 import Menu from '../../src/models/menu'
 import { enunciadoTree } from '../fixtures/enunciado'
 import { connectTestDatabase, disconnectTestDatabase } from '../support/database'
@@ -140,7 +141,7 @@ describe('banco lento ou fora do ar', () => {
   })
 
   it('tempo esgotado no banco devolve 503 com Retry-After, sem detalhes', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const log = vi.spyOn(logger, 'error')
     // Erro real do servidor quando o maxTimeMS estoura (código 50).
     vi.spyOn(Menu, 'find').mockImplementationOnce(() => {
       throw serverError(50, 'operation exceeded time limit')
@@ -151,12 +152,14 @@ describe('banco lento ou fora do ar', () => {
     expectProblem(response, 503, 'SERVICE_UNAVAILABLE')
     expect(response.headers['retry-after']).toBe(String(RETRY_AFTER_SECONDS))
     expect(JSON.stringify(response.body)).not.toContain('time limit')
-    expect(log).toHaveBeenCalledOnce()
+    expect(log).toHaveBeenCalledWith(
+      'request failed',
+      expect.objectContaining({ code: 'SERVICE_UNAVAILABLE' }),
+    )
   })
 
   it('com a conexão caída, leitura e escrita devolvem 503 e o serviço se recupera', async () => {
     const parentId = await createMenu('Informática')
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     // No serviço a espera é DB_TIMEOUT_MS; aqui é curta para o teste não demorar.
     mongoose.set('bufferTimeoutMS', 200)
     await disconnectTestDatabase()

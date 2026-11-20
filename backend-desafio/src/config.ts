@@ -13,6 +13,18 @@ const positiveInteger = (env: Env, name: string, fallback: number): number => {
   return value
 }
 
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const
+export type LogLevel = (typeof LOG_LEVELS)[number]
+
+const logLevel = (env: Env, fallback: LogLevel): LogLevel => {
+  const raw = env.LOG_LEVEL
+  if (raw === undefined || raw === '') return fallback
+  if (!LOG_LEVELS.includes(raw as LogLevel)) {
+    throw new Error(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}, got "${raw}"`)
+  }
+  return raw as LogLevel
+}
+
 export const DEFAULT_MENU_MAX_ITEMS = 10_000
 
 // Bem acima do maior corpo válido (um nome de 100 caracteres e um id).
@@ -26,6 +38,8 @@ export const loadConfig = (env: Env) => ({
   menuMaxItems: positiveInteger(env, 'MENU_MAX_ITEMS', DEFAULT_MENU_MAX_ITEMS),
   /** Tempo máximo de uma operação no banco e de espera por conexão. */
   dbTimeoutMs: positiveInteger(env, 'DB_TIMEOUT_MS', 5_000),
+  /** Menor nível que vai para o log (ADR 0011). */
+  logLevel: logLevel(env, 'info'),
 })
 
 export const config = loadConfig(process.env)
