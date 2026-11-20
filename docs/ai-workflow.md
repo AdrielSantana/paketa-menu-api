@@ -54,7 +54,7 @@ Estas decisões foram minhas. Em duas delas (marcadas) decidi contra a recomenda
 | Limites | O agente propôs um teto de itens | Tudo que for possível como guarda e tratativa: tempo máximo no banco, 503 quando o banco cai, corpo limitado |
 | Lambda | Quatro opções de adaptador e quatro de escopo | Biblioteca pronta, e nada de infraestrutura que não tenha sido executada |
 
-O caso da leitura do menu é o que melhor mostra o processo. Eu tinha escolhido `$graphLookup` para tudo. A medição mostrou que, para devolver o menu inteiro, ele era de 10 a 100 vezes mais lento que um `find` e tinha um teto de memória. Mantive o modelo de dados e mudei o operador do `GET`. A decisão antiga e a nova estão nos ADRs 0003 e 0009; não reescrevi a história.
+O caso da leitura do menu é o que melhor mostra o processo. Eu tinha escolhido `$graphLookup` para tudo. A medição mostrou que, para devolver o menu inteiro, ele era de 2 a 90 vezes mais lento que um `find`, conforme o volume, e tinha um teto de memória. Mantive o modelo de dados e mudei o operador do `GET`. A decisão antiga e a nova estão nos ADRs 0003 e 0009; não reescrevi a história.
 
 ## O que as guardas e os testes pegaram
 
