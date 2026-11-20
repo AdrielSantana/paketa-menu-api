@@ -1,5 +1,7 @@
 import { STATUS_CODES } from 'node:http'
 
+import { RETRY_AFTER_SECONDS } from './config'
+
 /**
  * Erro com resposta HTTP definida. O middleware central o converte em
  * Problem Details (RFC 9457, ADR 0007).
@@ -25,7 +27,7 @@ export class HttpError extends Error {
   }
 }
 
-export interface Problem {
+interface Problem {
   title: string
   status: number
   code: string
@@ -33,13 +35,27 @@ export interface Problem {
   [extension: string]: unknown
 }
 
-export const toProblem = (error: HttpError): Problem => ({
+const toProblem = (error: HttpError): Problem => ({
   title: STATUS_CODES[error.status] ?? 'Error',
   status: error.status,
   code: error.code,
   detail: error.message,
   ...error.extensions,
 })
+
+/**
+ * A resposta HTTP de um erro: status, cabeçalhos e corpo. É o único lugar
+ * que conhece o contrato (ADRs 0007 e 0010); o middleware de erros e o
+ * adaptador de Lambda só a entregam.
+ */
+export const toProblemResponse = (error: HttpError, requestId: unknown) => {
+  const headers: Record<string, string> = {
+    'content-type': 'application/problem+json; charset=utf-8',
+  }
+  if (error.status === 503) headers['retry-after'] = String(RETRY_AFTER_SECONDS)
+
+  return { status: error.status, headers, body: { ...toProblem(error), requestId } }
+}
 
 export const validationFailed = (errors: string[]) =>
   new HttpError(400, 'VALIDATION_FAILED', 'The request is invalid.', { errors })
@@ -56,14 +72,18 @@ export const menuNotFound = (id: string) =>
 export const menuNameTaken = (name: string) =>
   new HttpError(409, 'MENU_NAME_TAKEN', `A menu item named "${name}" already exists.`)
 
-export const menuHasSubmenus = (id: string, submenus: number) =>
+export const menuHasSubmenus = (
+  id: string,
+  submenus: number,
+  options: readonly string[],
+) =>
   new HttpError(
     409,
     'MENU_HAS_SUBMENUS',
     `Menu item "${id}" has ${submenus} direct submenu(s). Choose what happens to them: ` +
       '"?children=cascade" deletes the item and its whole subtree; ' +
       '"?children=promote" moves its direct submenus to the parent of the deleted item.',
-    { submenus, options: ['cascade', 'promote'] },
+    { submenus, options: [...options] },
   )
 
 export const parentNotFound = (relatedId: string) =>

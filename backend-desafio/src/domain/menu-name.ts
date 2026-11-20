@@ -1,6 +1,6 @@
 export const MENU_NAME_MAX_LENGTH = 100
 
-export interface NormalizedMenuName {
+interface NormalizedMenuName {
   /** Nome como será exibido: espaços arrumados, caixa original. */
   name: string
   /** Chave de unicidade: o nome em NFKC, sem caracteres invisíveis e em minúsculas (ADR 0006). */
@@ -12,9 +12,19 @@ export interface NormalizedMenuName {
 // cada caractere do nome ocupa no máximo 3 bytes na resposta (ADR 0010).
 const FORBIDDEN_CHARACTERS = /[\p{Cc}\p{Cs}]/u
 
-/** Recebe o nome já normalizado: tabulações e quebras de linha já viraram espaço. */
-export const hasForbiddenCharacters = (name: string): boolean =>
-  FORBIDDEN_CHARACTERS.test(name)
+// As três regras de um nome válido. Todas recebem o nome como chegou e
+// conferem a forma normalizada, que é a que vai para o banco.
+
+/** Pela chave: um nome só com espaços ou caracteres invisíveis também é vazio. */
+export const isBlankMenuName = (raw: string): boolean =>
+  normalizeMenuName(raw).nameKey.length === 0
+
+export const isMenuNameTooLong = (raw: string): boolean =>
+  normalizeMenuName(raw).name.length > MENU_NAME_MAX_LENGTH
+
+/** Tabulações e quebras de linha não contam: a normalização as troca por espaço. */
+export const hasForbiddenCharacters = (raw: string): boolean =>
+  FORBIDDEN_CHARACTERS.test(normalizeMenuName(raw).name)
 
 // Caracteres de formato (espaço de largura zero, hífen opcional, inversores
 // de direção): não aparecem na tela. Ficam no nome exibido, porque emojis

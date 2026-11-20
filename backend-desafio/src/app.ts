@@ -3,7 +3,7 @@ import express from 'express'
 import { REQUEST_BODY_LIMIT } from './config'
 import Health from './controllers/health'
 import { errorHandler, notFoundHandler } from './middlewares/error-handler'
-import { requestContext } from './middlewares/request-context'
+import { HEALTH_PATH, requestContext } from './middlewares/request-context'
 import menuRoutes from './routes/menu'
 import userRoutes from './routes/user'
 
@@ -13,7 +13,7 @@ app.disable('x-powered-by')
 // Antes de tudo: até um JSON malformado sai com request id e linha de log.
 app.use(requestContext)
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }))
-app.get('/health', Health.check)
+app.get(HEALTH_PATH, Health.check)
 app.use('/user', userRoutes)
 app.use('/api/v1/menu', menuRoutes)
 

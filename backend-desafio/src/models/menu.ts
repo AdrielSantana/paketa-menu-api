@@ -1,6 +1,6 @@
 import { model, Schema, Types } from 'mongoose'
 
-export interface IMenu {
+interface IMenu {
   name: string
   /** Chave de unicidade derivada do nome (ADR 0006). */
   nameKey: string

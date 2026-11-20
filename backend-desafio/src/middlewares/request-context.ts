@@ -8,30 +8,33 @@ import { logger } from '../logger'
 // tamanho que polua o log e a resposta.
 const SAFE_REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/
 
-export const isSafeRequestId = (value: string): boolean => SAFE_REQUEST_ID.test(value)
+export const REQUEST_ID_HEADER = 'x-request-id'
 
-const HEALTH_PATH = '/health'
+export const isSafeRequestId = (value: string | undefined): value is string =>
+  value !== undefined && SAFE_REQUEST_ID.test(value)
+
+export const HEALTH_PATH = '/health'
+
+// O nível acompanha o status. O health check bem-sucedido fica em debug,
+// para não poluir o log.
+const levelFor = (status: number, path: string) => {
+  if (status >= 500) return 'error'
+  if (status >= 400) return 'warn'
+  return path === HEALTH_PATH ? 'debug' : 'info'
+}
 
 // Dá um id a cada requisição e registra uma linha quando ela termina (ADR 0011).
 export const requestContext: RequestHandler = (req, res, next) => {
-  const received = req.get('x-request-id')
-  const requestId = received && isSafeRequestId(received) ? received : randomUUID()
+  const received = req.get(REQUEST_ID_HEADER)
+  const requestId = isSafeRequestId(received) ? received : randomUUID()
   res.locals.requestId = requestId
-  res.set('X-Request-Id', requestId)
+  res.set(REQUEST_ID_HEADER, requestId)
 
   const startedAt = performance.now()
   res.on('finish', () => {
     // Sem query string: parâmetros podem carregar dados que não são do log.
     const path = req.originalUrl.split('?')[0]
-    const failed = res.statusCode >= 400
-    const level =
-      res.statusCode >= 500
-        ? 'error'
-        : failed
-          ? 'warn'
-          : path === HEALTH_PATH
-            ? 'debug'
-            : 'info'
+    const level = levelFor(res.statusCode, path)
 
     logger[level]('request completed', {
       requestId,

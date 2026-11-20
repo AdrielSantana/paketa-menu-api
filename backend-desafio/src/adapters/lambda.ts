@@ -2,10 +2,9 @@ import serverlessExpress from '@codegenie/serverless-express'
 import type { Context } from 'aws-lambda'
 
 import app from '../app'
-import { RETRY_AFTER_SECONDS } from '../config'
-import { serviceUnavailable, toProblem } from '../errors'
+import { serviceUnavailable, toProblemResponse } from '../errors'
 import { logger, serializeError } from '../logger'
-import { isSafeRequestId } from '../middlewares/request-context'
+import { REQUEST_ID_HEADER, isSafeRequestId } from '../middlewares/request-context'
 
 // O que este adaptador precisa dos eventos HTTP do API Gateway (REST e HTTP
 // API) e do ALB. A tradução completa é da biblioteca.
@@ -25,17 +24,12 @@ interface HttpResult {
 // O runtime Node 24 do Lambda só aceita handler async, sem callback.
 type HttpHandler = (event: HttpEvent, context: Context) => Promise<HttpResult>
 
-const REQUEST_ID_HEADER = 'x-request-id'
+// Nomes de cabeçalho chegam com a caixa que o cliente mandou.
+const lookup = <T>(headers: Record<string, T> | null | undefined, name: string) =>
+  Object.entries(headers ?? {}).find(([key]) => key.toLowerCase() === name)?.[1]
 
-const sameName = (name: string) => (key: string) => key.toLowerCase() === name
-
-const readHeader = (event: HttpEvent, name: string): string | undefined => {
-  const single = Object.entries(event.headers ?? {}).find(([key]) => sameName(name)(key))
-  const multi = Object.entries(event.multiValueHeaders ?? {}).find(([key]) =>
-    sameName(name)(key),
-  )
-  return single?.[1] ?? multi?.[1]?.[0]
-}
+const readHeader = (event: HttpEvent, name: string): string | undefined =>
+  lookup(event.headers, name) ?? lookup(event.multiValueHeaders, name)?.[0]
 
 // Grava nos mapas que o evento já tem. Criar `headers` em um evento que só
 // tem `multiValueHeaders` faria a biblioteca responder no formato errado.
@@ -44,7 +38,9 @@ const writeHeader = (event: HttpEvent, name: string, value: string) => {
 
   for (const headers of [event.headers, event.multiValueHeaders]) {
     if (!headers) continue
-    for (const key of Object.keys(headers).filter(sameName(name))) delete headers[key]
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === name) delete headers[key]
+    }
   }
   if (event.headers) event.headers[name] = value
   if (event.multiValueHeaders) event.multiValueHeaders[name] = [value]
@@ -55,7 +51,7 @@ const writeHeader = (event: HttpEvent, name: string, value: string) => {
 // trilhas de log se encontram.
 const resolveRequestId = (event: HttpEvent, awsRequestId: string): string => {
   const received = readHeader(event, REQUEST_ID_HEADER)
-  if (received && isSafeRequestId(received)) return received
+  if (isSafeRequestId(received)) return received
 
   writeHeader(event, REQUEST_ID_HEADER, awsRequestId)
   return awsRequestId
@@ -64,15 +60,12 @@ const resolveRequestId = (event: HttpEvent, awsRequestId: string): string => {
 // Mesmo contrato do middleware de erros, para quando nem dá para chegar no
 // Express. O formato dos cabeçalhos acompanha o do evento.
 const unavailable = (event: HttpEvent, requestId: string): HttpResult => {
-  const headers = {
-    'content-type': 'application/problem+json; charset=utf-8',
-    'retry-after': String(RETRY_AFTER_SECONDS),
-    [REQUEST_ID_HEADER]: requestId,
-  }
+  const problem = toProblemResponse(serviceUnavailable(), requestId)
+  const headers = { ...problem.headers, [REQUEST_ID_HEADER]: requestId }
   const multiValueOnly = !event.headers && Boolean(event.multiValueHeaders)
 
   return {
-    statusCode: 503,
+    statusCode: problem.status,
     ...(multiValueOnly
       ? {
           multiValueHeaders: Object.fromEntries(
@@ -80,7 +73,7 @@ const unavailable = (event: HttpEvent, requestId: string): HttpResult => {
           ),
         }
       : { headers }),
-    body: JSON.stringify({ ...toProblem(serviceUnavailable()), requestId }),
+    body: JSON.stringify(problem.body),
   }
 }
 

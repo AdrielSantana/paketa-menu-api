@@ -15,7 +15,7 @@ import {
   parentNotFound,
 } from '../errors'
 import Menu from '../models/menu'
-import { ChildrenStrategy, CreateMenuBody } from '../validation/menu'
+import { CHILDREN_STRATEGIES, ChildrenStrategy, CreateMenuBody } from '../validation/menu'
 
 interface MenuRow {
   _id: Types.ObjectId
@@ -48,30 +48,29 @@ const createSubmenu = (name: string, nameKey: string, relatedId: Types.ObjectId)
 // Acha a subárvore de um item no banco: o $graphLookup desce por todos os
 // descendentes, seguindo quem aponta para ele em `relatedId` (ADR 0009).
 const findDescendantIds = async (id: Types.ObjectId, session: ClientSession) => {
-  const [item] = await aggregateDescendants(id, session).catch((error: unknown) => {
+  try {
+    const [item] = await Menu.aggregate<{ descendants: { _id: Types.ObjectId }[] }>([
+      { $match: { _id: id } },
+      {
+        $graphLookup: {
+          from: Menu.collection.name,
+          startWith: '$_id',
+          connectFromField: '_id',
+          connectToField: 'relatedId',
+          as: 'descendants',
+        },
+      },
+      { $project: { 'descendants._id': 1 } },
+    ]).session(session)
+
+    return item.descendants.map(descendant => descendant._id)
+  } catch (error) {
     // Subárvore maior do que o estágio consegue percorrer: erro explicado em
     // vez de 500 (ADR 0010).
     if (isGraphLookupMemoryExceeded(error)) throw menuSubtreeTooLarge(id.toString())
     throw error
-  })
-
-  return item.descendants.map(descendant => descendant._id)
+  }
 }
-
-const aggregateDescendants = async (id: Types.ObjectId, session: ClientSession) =>
-  Menu.aggregate<{ descendants: { _id: Types.ObjectId }[] }>([
-    { $match: { _id: id } },
-    {
-      $graphLookup: {
-        from: Menu.collection.name,
-        startWith: '$_id',
-        connectFromField: '_id',
-        connectToField: 'relatedId',
-        as: 'descendants',
-      },
-    },
-    { $project: { 'descendants._id': 1 } },
-  ]).session(session)
 
 export default {
   create: async (req: Request, res: Response): Promise<Response> => {
@@ -118,8 +117,13 @@ export default {
       const item = await Menu.findById(id).session(session)
       if (!item) throw menuNotFound(id.toString())
 
-      const submenus = await Menu.countDocuments({ relatedId: id }).session(session)
-      if (submenus > 0 && !strategy) throw menuHasSubmenus(id.toString(), submenus)
+      if (!strategy) {
+        // Sem a escolha do cliente, só uma folha pode ser apagada (ADR 0004).
+        const submenus = await Menu.countDocuments({ relatedId: id }).session(session)
+        if (submenus > 0) {
+          throw menuHasSubmenus(id.toString(), submenus, CHILDREN_STRATEGIES)
+        }
+      }
 
       if (strategy === 'promote') {
         // Os filhos diretos passam a apontar para o avô; o resto da subárvore

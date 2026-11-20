@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import {
   MENU_NAME_MAX_LENGTH,
   hasForbiddenCharacters,
+  isBlankMenuName,
+  isMenuNameTooLong,
   normalizeMenuName,
 } from '../../src/domain/menu-name'
 
@@ -85,7 +87,41 @@ describe('normalizeMenuName', () => {
   })
 })
 
+describe('isBlankMenuName', () => {
+  it.each([
+    ['vazio', ''],
+    ['só espaços', '   '],
+    ['tabulação e quebra de linha', '\t\n'],
+    ['só caracteres invisíveis', '\u200b\u2060\ufeff'],
+    ['espaços e invisíveis misturados', ' \u200b \u200d '],
+  ])('%s é nome vazio', (_label, name) => {
+    expect(isBlankMenuName(name)).toBe(true)
+  })
+
+  it.each(['TV', ' TV ', 'LCD\u200b', '0'])('%j não é vazio', name => {
+    expect(isBlankMenuName(name)).toBe(false)
+  })
+})
+
+describe('isMenuNameTooLong', () => {
+  it('aceita até o limite e recusa um caractere a mais', () => {
+    expect(isMenuNameTooLong('a'.repeat(MENU_NAME_MAX_LENGTH))).toBe(false)
+    expect(isMenuNameTooLong('a'.repeat(MENU_NAME_MAX_LENGTH + 1))).toBe(true)
+  })
+
+  it('mede o nome normalizado: espaços nas pontas e repetidos não contam', () => {
+    const padded = `  ${'a'.repeat(50)}     ${'b'.repeat(49)}  `
+
+    expect(padded.length).toBeGreaterThan(MENU_NAME_MAX_LENGTH)
+    expect(isMenuNameTooLong(padded)).toBe(false)
+  })
+})
+
 describe('hasForbiddenCharacters', () => {
+  it('tabulação e quebra de linha viram espaço, não são recusadas', () => {
+    expect(hasForbiddenCharacters('Smart\tTV\n')).toBe(false)
+  })
+
   it.each([
     ['nulo', 'TV\u0000'],
     ['escape', '\u001b[31mTV'],

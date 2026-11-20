@@ -1,6 +1,6 @@
 import { ErrorRequestHandler, RequestHandler } from 'express'
 
-import { REQUEST_BODY_LIMIT, RETRY_AFTER_SECONDS } from '../config'
+import { REQUEST_BODY_LIMIT } from '../config'
 import { isDatabaseUnavailable } from '../db/errors'
 import {
   HttpError,
@@ -9,7 +9,7 @@ import {
   payloadTooLarge,
   routeNotFound,
   serviceUnavailable,
-  toProblem,
+  toProblemResponse,
 } from '../errors'
 import { logger, serializeError } from '../logger'
 
@@ -68,10 +68,6 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     })
   }
 
-  if (httpError.status === 503) res.set('Retry-After', String(RETRY_AFTER_SECONDS))
-
-  res
-    .status(httpError.status)
-    .type('application/problem+json')
-    .json({ ...toProblem(httpError), requestId })
+  const { status, headers, body } = toProblemResponse(httpError, requestId)
+  res.status(status).set(headers).json(body)
 }
