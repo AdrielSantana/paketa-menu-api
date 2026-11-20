@@ -138,6 +138,22 @@ describe('atomicidade', () => {
   })
 })
 
+describe('itens inalcançáveis', () => {
+  // A API não cria órfãos nem ciclos; estes são gravados direto no banco.
+  it('órfãos e ciclos não aparecem no menu nem quebram o GET', async () => {
+    await seedMenu(enunciadoTree)
+    const [orphan, first, second] = [new Menu()._id, new Menu()._id, new Menu()._id]
+    await Menu.insertMany([
+      { _id: orphan, name: 'Órfão', nameKey: 'órfão', relatedId: new Menu()._id },
+      { name: 'Filho do órfão', nameKey: 'filho do órfão', relatedId: orphan },
+      { _id: first, name: 'Ciclo A', nameKey: 'ciclo a', relatedId: second },
+      { _id: second, name: 'Ciclo B', nameKey: 'ciclo b', relatedId: first },
+    ])
+
+    expect(await getMenuNames()).toStrictEqual(enunciadoTree)
+  })
+})
+
 describe('erro inesperado', () => {
   it('é registrado em log e respondido sem detalhes', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
