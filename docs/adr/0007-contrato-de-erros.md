@@ -33,9 +33,13 @@ Quem consome a API precisa distinguir os erros por código, sem depender do text
 |---|---|---|
 | 400 | Corpo, parâmetro ou query inválidos; JSON malformado | `VALIDATION_FAILED`, `MALFORMED_JSON` |
 | 404 | O recurso da URL não existe | `MENU_NOT_FOUND`, `ROUTE_NOT_FOUND` |
-| 409 | A requisição é válida, mas conflita com o estado atual | `MENU_NAME_TAKEN`, `MENU_HAS_SUBMENUS` |
+| 409 | A requisição é válida, mas conflita com o estado atual | `MENU_NAME_TAKEN`, `MENU_HAS_SUBMENUS`, `MENU_LIMIT_REACHED`, `MENU_SUBTREE_TOO_LARGE` |
+| 413 | Corpo maior que 10 KB | `PAYLOAD_TOO_LARGE` |
 | 422 | O corpo é válido, mas referencia algo que não existe | `PARENT_NOT_FOUND` |
 | 500 | Erro inesperado | `INTERNAL_ERROR` |
+| 503 | Banco lento ou fora do ar; vem com `Retry-After` | `SERVICE_UNAVAILABLE` |
+
+Os códigos de limite e o 503 foram acrescentados pelo ADR 0010.
 
 Um middleware central converte qualquer erro nesse formato. Erro 500 é registrado em log com o stack e respondido sem detalhes internos.
 

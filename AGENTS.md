@@ -33,6 +33,8 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 - `src/domain/`: funções puras, sem HTTP nem banco (montagem e serialização da árvore, normalização do nome). Toda regra que couber aqui vem para cá e ganha teste unitário.
 - `src/errors.ts` e `src/middlewares/error-handler.ts`: todo erro sai em Problem Details (ADR 0007). Controllers e validações lançam `HttpError` (ou chamam `next` com um); não montam resposta de erro à mão.
 - `src/db/transaction.ts`: toda escrita que depende de outro documento roda em `withTransaction` (ADR 0005).
+- `src/config.ts`: limites lidos do ambiente e validados no boot. `src/db/connect.ts` é o único ponto de conexão (tempos máximos, índices) e `src/db/errors.ts` classifica os erros do banco (ADR 0010).
+- Todo limite novo segue o ADR 0010: explícito, com erro que diz o que fazer e teste que falha sem a guarda.
 - Não crie camadas novas (services, repositories, DI) sem um ADR que justifique.
 
 ## Convenções
@@ -46,7 +48,7 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 
 1. **Decisão antes de código.** Mudança de modelagem, de contrato da API ou de dependência precisa de um ADR em `docs/adr/`. Se a decisão não foi tomada, pare e pergunte ao Adriel; não escolha por ele.
 2. **Spec antes de implementação.** Escreva primeiro o teste que descreve o comportamento, a partir do enunciado ou do ADR. Um teste escrito antes da implementação entra como `it.fails` ou `it.todo`, para a suíte seguir verde, e perde a marca no commit que o faz passar.
-3. **Teste no degrau certo.** Regra pura: teste unitário. Contrato HTTP, índices e comportamento do banco: teste de integração. Cubra os erros esperados (400, 404, 409) e os casos extremos, não só o caminho feliz.
+3. **Teste no degrau certo.** Regra pura: teste unitário. Contrato HTTP, índices e comportamento do banco: teste de integração. Cubra os erros esperados (400, 404, 409, 503) e os casos extremos, não só o caminho feliz.
 4. **Confira que o teste falha pelo motivo certo.** Um teste novo de regressão deve ser visto falhando sem a correção e passando com ela.
 5. **Commits pequenos, em português, no padrão `tipo(escopo): resumo`.** O corpo explica o porquê. Um commit, um assunto.
 

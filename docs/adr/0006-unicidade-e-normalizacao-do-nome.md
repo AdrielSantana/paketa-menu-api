@@ -21,7 +21,7 @@ Uma função pura (`normalizeMenuName`) produz dois valores a partir do nome rec
 | `nameKey` (unicidade) | o `name` em NFKC e minúsculas | `"smart tv"` |
 
 - Acentos fazem diferença: "Informática" e "Informatica" são nomes distintos.
-- `name` aceita de 1 a 100 caracteres depois da normalização.
+- `name` aceita de 1 a 100 caracteres depois da normalização, sem caracteres de controle nem Unicode malformado (ADR 0010).
 - A violação do índice (erro 11000) vira 409.
 
 ## Alternativas consideradas
