@@ -6,6 +6,8 @@ Solução do [desafio de backend da Paketá](./backend-desafio/readme.md): um se
 
 Feito por Adriel Santana com apoio de IA. O que eu decidi, o que a IA fez e o que as guardas pegaram estão em [docs/ai-workflow.md](./docs/ai-workflow.md).
 
+**Se você tem 15 minutos:** leia este README, o [ADR 0009](./docs/adr/0009-menu-inteiro-com-find-graphlookup-so-na-cascata.md) (a decisão que mudou por medição), o [ADR 0004](./docs/adr/0004-exclusao-de-item-com-filhos.md) (onde me afastei do enunciado) e [`backend-desafio/src/controllers/menu.ts`](./backend-desafio/src/controllers/menu.ts). O resto é referência.
+
 ## Rodar
 
 Tudo dentro de `backend-desafio/`, com Node 24 (`.nvmrc`).
