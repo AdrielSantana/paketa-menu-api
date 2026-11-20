@@ -21,6 +21,16 @@ describe('redactSecrets', () => {
   ])('não mexe em %j', text => {
     expect(redactSecrets(text)).toBe(text)
   })
+
+  // O caminho da URL vem do cliente e passa por aqui a cada requisição. Com o
+  // esquema sem tamanho máximo, este texto levava segundos.
+  it('texto longo sem credencial custa tempo proporcional ao tamanho', () => {
+    const text = 'a'.repeat(200_000)
+    const startedAt = performance.now()
+
+    expect(redactSecrets(text)).toBe(text)
+    expect(performance.now() - startedAt).toBeLessThan(500)
+  })
 })
 
 describe('serializeError', () => {

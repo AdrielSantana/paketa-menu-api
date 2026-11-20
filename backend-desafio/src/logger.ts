@@ -1,18 +1,12 @@
-import { type LogLevel, config } from './config'
+import { LOG_LEVELS, type LogLevel, config } from './config'
 
 type Fields = Record<string, unknown>
 
-const WEIGHT: Record<LogLevel, number> = {
-  debug: 10,
-  info: 20,
-  warn: 30,
-  error: 40,
-  silent: 50,
-}
-
 // Usuário e senha em URLs, como em `mongodb://usuario:senha@host`. Mensagens
-// de erro de conexão costumam carregar a URL inteira.
-const CREDENTIALS_IN_URL = /(\w[\w+.-]*:\/\/)[^\s/:@]+:[^\s/@]+@/g
+// de erro de conexão costumam carregar a URL inteira. O esquema tem tamanho
+// limitado: sem isso, uma sequência longa de letras (o caminho de uma URL,
+// que vem do cliente) faria a busca custar o quadrado do tamanho.
+const CREDENTIALS_IN_URL = /(\w[\w+.-]{0,31}:\/\/)[^\s/:@]+:[^\s/@]+@/g
 
 export const redactSecrets = (text: string): string =>
   text.replace(CREDENTIALS_IN_URL, '$1***:***@')
@@ -32,22 +26,23 @@ const MAX_CAUSE_DEPTH = 3
 export const serializeError = (error: unknown, depth = 0): SerializedError => {
   if (!(error instanceof Error)) return { message: String(error) }
 
-  const { code } = error as { code?: unknown }
+  // Campos sem valor ficam undefined e somem na serialização da linha.
   return {
     name: error.name,
     message: error.message,
-    ...(code === undefined ? {} : { code }),
+    code: (error as { code?: unknown }).code,
     stack: error.stack,
-    ...(error.cause === undefined || depth >= MAX_CAUSE_DEPTH
-      ? {}
-      : { cause: serializeError(error.cause, depth + 1) }),
+    cause:
+      error.cause === undefined || depth >= MAX_CAUSE_DEPTH
+        ? undefined
+        : serializeError(error.cause, depth + 1),
   }
 }
 
 // Uma linha JSON por evento na saída padrão, que é de onde CloudWatch e
 // Datadog leem (ADR 0011). O mascaramento vale para a linha inteira.
 const write = (level: Exclude<LogLevel, 'silent'>, message: string, fields: Fields) => {
-  if (WEIGHT[level] < WEIGHT[config.logLevel]) return
+  if (LOG_LEVELS.indexOf(level) < LOG_LEVELS.indexOf(config.logLevel)) return
 
   const line = JSON.stringify({
     level,
