@@ -17,7 +17,7 @@ Dentro de `backend-desafio/`:
 | Comando | O que faz |
 |---|---|
 | `npm ci` | Instala as versões exatas do lockfile |
-| `npm run check` | Formatação, lint, tipos e testes. É a definição de pronto |
+| `npm run check` | Formatação, lint, tipos, testes e build. É a definição de pronto |
 | `npm test` | Todos os testes (sobe um MongoDB em memória, não precisa de Docker) |
 | `npm run test:unit` / `npm run test:integration` | Um degrau da pirâmide por vez |
 | `npm run db:up` e `npm run start` | Banco local (docker compose) e servidor em modo watch |
@@ -29,7 +29,8 @@ O fluxo de uma requisição segue o padrão do boilerplate, uma pasta por papel 
 
 `routes/` → `validation/` (middlewares yup) → `controllers/` (handlers async) → `models/` (schemas mongoose)
 
-- `src/app.ts` monta o app Express; `src/index.ts` só conecta no banco e faz o listen. Testes importam o `app`, nunca o `index`.
+- `src/app.ts` monta o app Express. Há dois pontos de entrada sobre ele: `src/index.ts` (servidor HTTP) e `src/lambda.ts` (handler de Lambda, via `src/adapters/lambda.ts`, ADR 0012). Testes importam o `app` ou o adaptador, nunca os pontos de entrada.
+- `npm run build` compila `src/` para `build/`, que é o que roda fora do desenvolvimento.
 - `src/domain/`: funções puras, sem HTTP nem banco (montagem e serialização da árvore, normalização do nome). Toda regra que couber aqui vem para cá e ganha teste unitário.
 - `src/errors.ts` e `src/middlewares/error-handler.ts`: todo erro sai em Problem Details (ADR 0007). Controllers e validações lançam `HttpError` (ou chamam `next` com um); não montam resposta de erro à mão.
 - `src/db/transaction.ts`: toda escrita que depende de outro documento roda em `withTransaction` (ADR 0005).
