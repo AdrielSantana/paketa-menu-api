@@ -157,7 +157,7 @@ describe('itens inalcançáveis', () => {
 describe('erro inesperado', () => {
   it('é registrado em log e respondido sem detalhes', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.spyOn(Menu, 'aggregate').mockImplementationOnce(() => {
+    vi.spyOn(Menu, 'find').mockImplementationOnce(() => {
       throw new Error('conexão perdida com mongodb://usuario:senha@host')
     })
 

@@ -14,16 +14,6 @@ interface MenuRow {
   relatedId: Types.ObjectId | null
 }
 
-// Desce de um item por todos os seus descendentes, seguindo quem aponta
-// para ele em `relatedId` (ADR 0003).
-const descendantsLookup = {
-  from: Menu.collection.name,
-  startWith: '$_id',
-  connectFromField: '_id',
-  connectToField: 'relatedId',
-  as: 'descendants',
-}
-
 const DUPLICATE_KEY = 11000
 const isDuplicateKeyError = (error: unknown) =>
   error instanceof mongoose.mongo.MongoServerError && error.code === DUPLICATE_KEY
@@ -50,10 +40,20 @@ const createSubmenu = (name: string, nameKey: string, relatedId: Types.ObjectId)
     return menu
   })
 
+// Acha a subárvore de um item no banco: o $graphLookup desce por todos os
+// descendentes, seguindo quem aponta para ele em `relatedId` (ADR 0009).
 const findDescendantIds = async (id: Types.ObjectId, session: ClientSession) => {
   const [item] = await Menu.aggregate<{ descendants: { _id: Types.ObjectId }[] }>([
     { $match: { _id: id } },
-    { $graphLookup: descendantsLookup },
+    {
+      $graphLookup: {
+        from: Menu.collection.name,
+        startWith: '$_id',
+        connectFromField: '_id',
+        connectToField: 'relatedId',
+        as: 'descendants',
+      },
+    },
     { $project: { 'descendants._id': 1 } },
   ]).session(session)
 
@@ -81,24 +81,12 @@ export default {
   },
 
   getTree: async (_req: Request, res: Response): Promise<Response> => {
-    const roots = await Menu.aggregate<MenuRow & { descendants: MenuRow[] }>([
-      { $match: { relatedId: null } },
-      { $graphLookup: descendantsLookup },
-      {
-        $project: {
-          name: 1,
-          relatedId: 1,
-          'descendants._id': 1,
-          'descendants.name': 1,
-          'descendants.relatedId': 1,
-        },
-      },
-    ])
-
-    const items = roots.flatMap(root => [root, ...root.descendants]).map(toMenuItem)
+    // O menu inteiro é a coleção inteira: um find projetado, sem percorrer o
+    // grafo no banco (ADR 0009). Quem aninha é buildMenuTree.
+    const rows = await Menu.find({}, { name: 1, relatedId: 1 }).lean<MenuRow[]>()
 
     // Serialização própria, sem recursão: ver serializeMenuTree.
-    return res.type('json').send(serializeMenuTree(buildMenuTree(items)))
+    return res.type('json').send(serializeMenuTree(buildMenuTree(rows.map(toMenuItem))))
   },
 
   delete: async (req: Request, res: Response): Promise<Response> => {
