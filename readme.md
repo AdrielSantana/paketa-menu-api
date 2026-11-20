@@ -108,7 +108,7 @@ A primeira versão lia o menu com `$graphLookup`. Medi com 1 milhão de itens: 1
 
 - **177 testes**: 78 unitários (incluindo testes de propriedades com fast-check) e 99 de integração (HTTP com supertest, eventos de Lambda, o servidor subindo em um processo de verdade e MongoDB 8.0 em memória, em replica set).
 - **Concorrência:** criar um sub-item enquanto o pai é apagado nunca deixa órfão. O teste falha se a trava da transação for removida.
-- **Conferência por mutação:** em cada entrega injetei defeitos de propósito no código e conferi se os testes pegavam. De 60 defeitos, 58 foram detectados; os dois que passaram mostraram um trecho redundante e uma asserção fraca, ambos corrigidos.
+- **Conferência por mutação:** a cada entrega, o agente de IA injetou defeitos de propósito no código e conferiu se os testes pegavam. De 60 defeitos, 58 foram detectados; os dois que passaram mostraram um trecho redundante e uma asserção fraca, ambos corrigidos.
 - **Revisão independente:** uma revisão automática de todo o código apontou 10 problemas. Os 10 foram reproduzidos em teste antes de corrigir. Depois, uma passada de simplificação removeu duplicação sem mudar o contrato.
 - **`npm run check`** é a definição de pronto e roda em três lugares: nos hooks do agente de IA, no pre-commit (husky) e no CI (GitHub Actions).
 
