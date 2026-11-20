@@ -72,6 +72,19 @@ describe('caracteres do nome', () => {
     ])
   })
 
+  it('nome só com caracteres invisíveis é recusado como vazio', async () => {
+    const response = await post({ name: '\u200b\u2060' })
+
+    expectProblem(response, 400, 'VALIDATION_FAILED')
+    expect(response.body.errors).toEqual(['name must not be blank'])
+  })
+
+  it('caractere invisível não burla a unicidade do nome', async () => {
+    await createMenu('LCD')
+
+    expectProblem(await post({ name: 'LCD\u200b' }), 409, 'MENU_NAME_TAKEN')
+  })
+
   it('aceita emoji e trata tabulação e quebra de linha como espaço', async () => {
     await createMenu('Televisores 📺')
     await createMenu('Smart\tTV\n4K')

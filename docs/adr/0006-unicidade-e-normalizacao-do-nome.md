@@ -18,8 +18,9 @@ Uma função pura (`normalizeMenuName`) produz dois valores a partir do nome rec
 | Valor | Regra | Exemplo para `"  Smart   TV "` |
 |---|---|---|
 | `name` (exibido) | Unicode NFC, sem espaços nas pontas, espaços internos repetidos viram um | `"Smart TV"` |
-| `nameKey` (unicidade) | o `name` em NFKC e minúsculas | `"smart tv"` |
+| `nameKey` (unicidade) | o `name` em NFKC, sem caracteres invisíveis e em minúsculas | `"smart tv"` |
 
+- Caracteres de formato (categoria Unicode Cf: espaço de largura zero, hífen opcional, inversores de direção) não aparecem na tela. Ficam no nome exibido, porque emojis compostos e algumas escritas dependem deles, mas saem da chave: "LCD" seguido de um caractere invisível é o mesmo nome que "LCD", e um nome só com eles é vazio.
 - Acentos fazem diferença: "Informática" e "Informatica" são nomes distintos.
 - `name` aceita de 1 a 100 caracteres depois da normalização, sem caracteres de controle nem Unicode malformado (ADR 0010).
 - A violação do índice (erro 11000) vira 409.
@@ -35,5 +36,6 @@ Uma função pura (`normalizeMenuName`) produz dois valores a partir do nome rec
 
 - O nome é devolvido como foi digitado, só com os espaços arrumados; a caixa original é preservada.
 - A regra de normalização vive em um lugar só e tem teste unitário. Mudá-la depois exige migrar o `nameKey` dos documentos existentes.
+- A chave não resolve todos os nomes visualmente iguais: letras de alfabetos diferentes com o mesmo desenho ("A" latino e "А" cirílico) continuam distintas. Isso pediria a tabela de confundíveis do Unicode.
 - `toLowerCase()` não cobre todos os casos de equivalência entre idiomas (o "ß" alemão, o "İ" turco). Para um menu em português é suficiente.
 - A unicidade global é restritiva para catálogos grandes. Trocar para unicidade por pai seria mudar o índice para `{ relatedId, nameKey }`.

@@ -30,7 +30,8 @@ const createBody = yup
       .test(
         'not-blank',
         '${path} must not be blank',
-        value => normalizedLength(value) > 0,
+        // Pela chave: um nome só com caracteres invisíveis também é vazio.
+        value => normalizeMenuName(value).nameKey.length > 0,
       )
       .test(
         'max-length',

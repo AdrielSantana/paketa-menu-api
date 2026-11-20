@@ -26,6 +26,28 @@ describe('normalizeMenuName', () => {
     expect(new Set(keys).size).toBe(1)
   })
 
+  // Caracteres de formato (categoria Cf) não aparecem na tela.
+  it.each([
+    ['espaço de largura zero', 'LCD\u200b'],
+    ['juntador de palavras', 'L\u2060CD'],
+    ['hífen opcional', 'LC\u00adD'],
+    ['inversor de direção', '\u202eLCD'],
+  ])('%s não cria um nome diferente', (_label, raw) => {
+    expect(normalizeMenuName(raw).nameKey).toBe('lcd')
+  })
+
+  it('caractere invisível entre espaços não deixa espaço duplo na chave', () => {
+    expect(normalizeMenuName('Smart \u200b TV').nameKey).toBe('smart tv')
+  })
+
+  it('nome só com caracteres invisíveis tem chave vazia', () => {
+    expect(normalizeMenuName('\u200b\u2060').nameKey).toBe('')
+  })
+
+  it('emoji composto mantém o juntador no nome exibido', () => {
+    expect(normalizeMenuName('Família 👨‍👩‍👧').name).toBe('Família 👨‍👩‍👧')
+  })
+
   it('acento muda a chave', () => {
     expect(normalizeMenuName('Informática').nameKey).not.toBe(
       normalizeMenuName('Informatica').nameKey,
