@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response } from 'express'
 import * as yup from 'yup'
 
-import { MENU_NAME_MAX_LENGTH, normalizeMenuName } from '../domain/menu-name'
+import {
+  MENU_NAME_MAX_LENGTH,
+  hasForbiddenCharacters,
+  normalizeMenuName,
+} from '../domain/menu-name'
 import { validationFailed } from '../errors'
 
 const OBJECT_ID = /^[0-9a-fA-F]{24}$/
@@ -32,6 +36,11 @@ const createBody = yup
         'max-length',
         `\${path} must be at most ${MENU_NAME_MAX_LENGTH} characters`,
         value => normalizedLength(value) <= MENU_NAME_MAX_LENGTH,
+      )
+      .test(
+        'allowed-characters',
+        '${path} must not contain control characters or malformed Unicode',
+        value => !hasForbiddenCharacters(normalizeMenuName(value).name),
       ),
     relatedId: yup.string().nullable().matches(OBJECT_ID, OBJECT_ID_MESSAGE),
   })

@@ -4,6 +4,8 @@ import path from 'node:path'
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_MENU_MAX_ITEMS } from '../../src/config'
+import { MENU_NAME_MAX_LENGTH } from '../../src/domain/menu-name'
 import {
   type MenuItem,
   type MenuNode,
@@ -246,5 +248,22 @@ describe('propriedades da árvore, para qualquer floresta', () => {
         expect(serializeMenuTree(tree)).toBe(JSON.stringify(tree))
       }),
     )
+  })
+})
+
+describe('tamanho da resposta no teto de itens (ADR 0010)', () => {
+  it('o pior caso do teto padrão cabe nos 6 MB de resposta do Lambda', () => {
+    // Pior caso: todo nome no tamanho máximo com caracteres de 3 bytes, e todo
+    // item com filho (uma cadeia), que é quando mais itens carregam "submenus".
+    const worstName = '\uffff'.repeat(MENU_NAME_MAX_LENGTH)
+    const id = (index: number) => index.toString(16).padStart(24, '0')
+    const items = Array.from({ length: DEFAULT_MENU_MAX_ITEMS }, (_, index) =>
+      item(id(index), worstName, index === 0 ? null : id(index - 1)),
+    )
+
+    const bytes = Buffer.byteLength(serializeMenuTree(buildMenuTree(items)))
+
+    expect(bytes / DEFAULT_MENU_MAX_ITEMS).toBeLessThanOrEqual(359)
+    expect(bytes).toBeLessThan(6 * 1024 * 1024)
   })
 })

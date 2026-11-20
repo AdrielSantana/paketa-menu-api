@@ -71,5 +71,31 @@ export const parentNotFound = (relatedId: string) =>
     `relatedId "${relatedId}" does not reference an existing menu item.`,
   )
 
+export const menuLimitReached = (limit: number) =>
+  new HttpError(
+    409,
+    'MENU_LIMIT_REACHED',
+    `The menu has reached its limit of ${limit} items. Delete an item before creating a new one.`,
+    { limit },
+  )
+
+export const menuSubtreeTooLarge = (id: string) =>
+  new HttpError(
+    409,
+    'MENU_SUBTREE_TOO_LARGE',
+    `The subtree of menu item "${id}" is too large to delete in one request. ` +
+      'Delete its branches first.',
+  )
+
+export const payloadTooLarge = (limit: string) =>
+  new HttpError(413, 'PAYLOAD_TOO_LARGE', `The request body is larger than ${limit}.`)
+
+export const serviceUnavailable = () =>
+  new HttpError(
+    503,
+    'SERVICE_UNAVAILABLE',
+    'The service is temporarily unable to handle the request. Try again shortly.',
+  )
+
 export const internalError = () =>
   new HttpError(500, 'INTERNAL_ERROR', 'An unexpected error occurred.')

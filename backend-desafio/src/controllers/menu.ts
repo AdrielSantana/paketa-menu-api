@@ -1,10 +1,19 @@
 import { Request, Response } from 'express'
-import mongoose, { ClientSession, Types } from 'mongoose'
+import { ClientSession, Types } from 'mongoose'
 
+import { config } from '../config'
+import { isDuplicateKeyError, isGraphLookupMemoryExceeded } from '../db/errors'
 import { withTransaction } from '../db/transaction'
 import { normalizeMenuName } from '../domain/menu-name'
 import { buildMenuTree, MenuItem, serializeMenuTree } from '../domain/menu-tree'
-import { menuHasSubmenus, menuNameTaken, menuNotFound, parentNotFound } from '../errors'
+import {
+  menuHasSubmenus,
+  menuLimitReached,
+  menuNameTaken,
+  menuNotFound,
+  menuSubtreeTooLarge,
+  parentNotFound,
+} from '../errors'
 import Menu from '../models/menu'
 import { ChildrenStrategy, CreateMenuBody } from '../validation/menu'
 
@@ -13,10 +22,6 @@ interface MenuRow {
   name: string
   relatedId: Types.ObjectId | null
 }
-
-const DUPLICATE_KEY = 11000
-const isDuplicateKeyError = (error: unknown) =>
-  error instanceof mongoose.mongo.MongoServerError && error.code === DUPLICATE_KEY
 
 const toMenuItem = ({ _id, name, relatedId }: MenuRow): MenuItem => ({
   id: _id.toString(),
@@ -43,7 +48,18 @@ const createSubmenu = (name: string, nameKey: string, relatedId: Types.ObjectId)
 // Acha a subárvore de um item no banco: o $graphLookup desce por todos os
 // descendentes, seguindo quem aponta para ele em `relatedId` (ADR 0009).
 const findDescendantIds = async (id: Types.ObjectId, session: ClientSession) => {
-  const [item] = await Menu.aggregate<{ descendants: { _id: Types.ObjectId }[] }>([
+  const [item] = await aggregateDescendants(id, session).catch((error: unknown) => {
+    // Subárvore maior do que o estágio consegue percorrer: erro explicado em
+    // vez de 500 (ADR 0010).
+    if (isGraphLookupMemoryExceeded(error)) throw menuSubtreeTooLarge(id.toString())
+    throw error
+  })
+
+  return item.descendants.map(descendant => descendant._id)
+}
+
+const aggregateDescendants = async (id: Types.ObjectId, session: ClientSession) =>
+  Menu.aggregate<{ descendants: { _id: Types.ObjectId }[] }>([
     { $match: { _id: id } },
     {
       $graphLookup: {
@@ -57,14 +73,18 @@ const findDescendantIds = async (id: Types.ObjectId, session: ClientSession) => 
     { $project: { 'descendants._id': 1 } },
   ]).session(session)
 
-  return item.descendants.map(descendant => descendant._id)
-}
-
 export default {
   create: async (req: Request, res: Response): Promise<Response> => {
     // Corpo já validado em validation/menu.ts.
     const body = req.body as CreateMenuBody
     const { name, nameKey } = normalizeMenuName(body.name)
+
+    // Teto de itens: mantém o GET, que devolve tudo, dentro de um tamanho
+    // conhecido. A contagem estimada não percorre documentos (ADR 0010).
+    const total = await Menu.estimatedDocumentCount({ maxTimeMS: config.dbTimeoutMs })
+    if (total >= config.menuMaxItems) {
+      throw menuLimitReached(config.menuMaxItems)
+    }
 
     try {
       const menu = body.relatedId

@@ -1,7 +1,11 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import { normalizeMenuName } from '../../src/domain/menu-name'
+import {
+  MENU_NAME_MAX_LENGTH,
+  hasForbiddenCharacters,
+  normalizeMenuName,
+} from '../../src/domain/menu-name'
 
 describe('normalizeMenuName', () => {
   it.each([
@@ -54,6 +58,44 @@ describe('normalizeMenuName', () => {
 
         expect(name).toBe(name.trim())
         expect(name).not.toMatch(/\s{2,}/)
+      }),
+    )
+  })
+})
+
+describe('hasForbiddenCharacters', () => {
+  it.each([
+    ['nulo', 'TV\u0000'],
+    ['escape', '\u001b[31mTV'],
+    ['DEL', 'TV\u007f'],
+    ['controle C1', 'TV\u0085'],
+    ['surrogate alto solto', 'TV\ud83d'],
+    ['surrogate baixo solto', '\ude00TV'],
+  ])('recusa %s', (_label, name) => {
+    expect(hasForbiddenCharacters(name)).toBe(true)
+  })
+
+  it.each([
+    'Informática',
+    'Smart TV 4K',
+    'Televisores 📺',
+    '日本語',
+    '"aspas" e \\barra',
+  ])('aceita %j', name => {
+    expect(hasForbiddenCharacters(name)).toBe(false)
+  })
+
+  // É o que sustenta a conta do teto de itens no ADR 0010.
+  it('propriedade: um nome válido ocupa no máximo 3 bytes por caractere em JSON', () => {
+    fc.assert(
+      fc.property(fc.string({ unit: 'binary', maxLength: 150 }), raw => {
+        const { name } = normalizeMenuName(raw)
+        fc.pre(name.length <= MENU_NAME_MAX_LENGTH && !hasForbiddenCharacters(name))
+
+        const quotes = 2
+        expect(Buffer.byteLength(JSON.stringify(name))).toBeLessThanOrEqual(
+          quotes + 3 * name.length,
+        )
       }),
     )
   })
