@@ -20,7 +20,6 @@ const captureLogs = () => {
 
 afterEach(() => {
   config.logLevel = 'silent'
-  vi.restoreAllMocks()
 })
 
 describe('GET /health', () => {

@@ -2,7 +2,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import type { TestProject } from 'vitest/node'
 
 // Versão fixada de propósito: a mesma major do docker-compose de desenvolvimento.
-const MONGODB_VERSION = '8.0.26'
+export const MONGODB_VERSION = '8.0.26'
 
 // Sobe um replica set de um nó para toda a execução e entrega a URI aos
 // testes. Replica set porque o serviço usa transações (ADR 0005).

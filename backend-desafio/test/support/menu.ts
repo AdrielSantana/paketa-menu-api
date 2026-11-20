@@ -8,8 +8,21 @@ export const MENU_URL = '/api/v1/menu'
 export type MenuNode = { id: string; name: string; submenus?: MenuNode[] }
 export type NameTree = { name: string; submenus?: NameTree[] }
 
+/** Um id válido que não existe no banco. */
+export const UNKNOWN_ID = '507f1f77bcf86cd799439011'
+
+// As requisições cruas, para os testes que conferem status e corpo. `unknown`
+// porque os testes de validação mandam corpos fora do contrato.
+export const postMenu = (body: unknown) =>
+  request(app)
+    .post(MENU_URL)
+    .send(body as object)
+
+export const deleteMenu = (id: string, query = '') =>
+  request(app).delete(`${MENU_URL}/${id}${query}`)
+
 export const createMenu = async (name: string, relatedId?: string): Promise<string> => {
-  const response = await request(app).post(MENU_URL).send({ name, relatedId }).expect(201)
+  const response = await postMenu({ name, relatedId }).expect(201)
   return response.body.id
 }
 

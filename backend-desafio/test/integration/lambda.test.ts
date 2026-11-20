@@ -1,16 +1,15 @@
 import type { Context } from 'aws-lambda'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createHandler } from '../../src/adapters/lambda'
 import { RETRY_AFTER_SECONDS } from '../../src/config'
 import { enunciadoTree } from '../fixtures/enunciado'
-import { type MenuNode, getMenuNames, seedMenu, toNames } from '../support/menu'
+import { MENU_URL, type MenuNode, getMenuNames, seedMenu, toNames } from '../support/menu'
 
 // Adaptador de Lambda (ADR 0012): o handler é invocado com eventos no formato
 // do API Gateway, sem servidor HTTP, contra o mesmo banco dos outros testes.
 
 const AWS_REQUEST_ID = 'c6af9ac6-7b61-11e6-9a41-93e8deadbeef'
-const MENU_PATH = '/api/v1/menu'
 
 const fakeContext = () =>
   ({
@@ -56,11 +55,13 @@ const httpApiEvent = (method: string, path: string, options: RequestOptions = {}
   isBase64Encoded: false,
 })
 
+// O formato "multi value": cada chave leva uma lista de valores.
+const multiValue = (values: Record<string, string>) =>
+  Object.fromEntries(Object.entries(values).map(([key, value]) => [key, [value]]))
+
 // Evento do API Gateway REST API (payload 1.0).
 const restApiEvent = (method: string, path: string, options: RequestOptions = {}) => {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
-  const multiValue = (values: Record<string, string>) =>
-    Object.fromEntries(Object.entries(values).map(([key, value]) => [key, [value]]))
 
   return {
     resource: '/{proxy+}',
@@ -100,14 +101,11 @@ const albEvent = (method: string, path: string, options: RequestOptions = {}) =>
   },
   httpMethod: method,
   path,
-  multiValueQueryStringParameters: Object.fromEntries(
-    Object.entries(options.query ?? {}).map(([key, value]) => [key, [value]]),
-  ),
-  multiValueHeaders: Object.fromEntries(
-    Object.entries({ 'content-type': 'application/json', ...options.headers }).map(
-      ([key, value]) => [key, [value]],
-    ),
-  ),
+  multiValueQueryStringParameters: multiValue(options.query ?? {}),
+  multiValueHeaders: multiValue({
+    'content-type': 'application/json',
+    ...options.headers,
+  }),
   body: options.body === undefined ? '' : JSON.stringify(options.body),
   isBase64Encoded: false,
 })
@@ -140,42 +138,38 @@ const invoke = async (handler: ReturnType<typeof createHandler>, event: Event) =
   }
 }
 
-afterEach(() => {
-  vi.restoreAllMocks()
-})
-
 describe('handler de Lambda', () => {
   it('atende o fluxo do enunciado com eventos do HTTP API', async () => {
     const handler = createHandler(alreadyConnected)
 
     const created = await invoke(
       handler,
-      httpApiEvent('POST', MENU_PATH, { body: { name: 'Informática' } }),
+      httpApiEvent('POST', MENU_URL, { body: { name: 'Informática' } }),
     )
     expect(created.status).toBe(201)
     const id = created.body!.id as string
 
     const child = await invoke(
       handler,
-      httpApiEvent('POST', MENU_PATH, { body: { name: 'Computadores', relatedId: id } }),
+      httpApiEvent('POST', MENU_URL, { body: { name: 'Computadores', relatedId: id } }),
     )
     expect(child.status).toBe(201)
 
-    const tree = await invoke(handler, httpApiEvent('GET', MENU_PATH))
+    const tree = await invoke(handler, httpApiEvent('GET', MENU_URL))
     expect(tree.status).toBe(200)
     expect(tree.headers['content-type']).toMatch(/^application\/json/)
     expect(toNames(tree.body as unknown as MenuNode[])).toStrictEqual([
       { name: 'Informática', submenus: [{ name: 'Computadores' }] },
     ])
 
-    const blocked = await invoke(handler, httpApiEvent('DELETE', `${MENU_PATH}/${id}`))
+    const blocked = await invoke(handler, httpApiEvent('DELETE', `${MENU_URL}/${id}`))
     expect(blocked.status).toBe(409)
     expect(blocked.headers['content-type']).toMatch(/^application\/problem\+json/)
     expect(blocked.body).toMatchObject({ code: 'MENU_HAS_SUBMENUS' })
 
     const deleted = await invoke(
       handler,
-      httpApiEvent('DELETE', `${MENU_PATH}/${id}`, { query: { children: 'cascade' } }),
+      httpApiEvent('DELETE', `${MENU_URL}/${id}`, { query: { children: 'cascade' } }),
     )
     expect(deleted.status).toBe(200)
     expect(deleted.body).toStrictEqual({ id, deletedCount: 2 })
@@ -186,13 +180,13 @@ describe('handler de Lambda', () => {
     const ids = await seedMenu(enunciadoTree)
     const handler = createHandler(alreadyConnected)
 
-    const tree = await invoke(handler, restApiEvent('GET', MENU_PATH))
+    const tree = await invoke(handler, restApiEvent('GET', MENU_URL))
     expect(tree.status).toBe(200)
     expect(toNames(tree.body as unknown as MenuNode[])).toStrictEqual(enunciadoTree)
 
     const promoted = await invoke(
       handler,
-      restApiEvent('DELETE', `${MENU_PATH}/${ids.get('Informática')}`, {
+      restApiEvent('DELETE', `${MENU_URL}/${ids.get('Informática')}`, {
         query: { children: 'promote' },
       }),
     )
@@ -206,7 +200,7 @@ describe('handler de Lambda', () => {
   it('erro de validação e rota desconhecida saem em Problem Details', async () => {
     const handler = createHandler(alreadyConnected)
 
-    const invalid = await invoke(handler, httpApiEvent('POST', MENU_PATH, { body: {} }))
+    const invalid = await invoke(handler, httpApiEvent('POST', MENU_URL, { body: {} }))
     expect(invalid.status).toBe(400)
     expect(invalid.body).toMatchObject({ code: 'VALIDATION_FAILED' })
 
@@ -229,7 +223,7 @@ describe('handler de Lambda', () => {
 
       const received = await invoke(
         handler,
-        event('GET', MENU_PATH, { headers: { 'X-Request-Id': 'pedido-do-cliente' } }),
+        event('GET', MENU_URL, { headers: { 'X-Request-Id': 'pedido-do-cliente' } }),
       )
       expect(received.headers['x-request-id']).toBe('pedido-do-cliente')
     },
@@ -240,7 +234,7 @@ describe('handler de Lambda', () => {
     const handler = createHandler(connect)
 
     for (let invocation = 0; invocation < 3; invocation++) {
-      expect((await invoke(handler, httpApiEvent('GET', MENU_PATH))).status).toBe(200)
+      expect((await invoke(handler, httpApiEvent('GET', MENU_URL))).status).toBe(200)
     }
 
     expect(connect).toHaveBeenCalledOnce()
@@ -252,7 +246,7 @@ describe('handler de Lambda', () => {
       .mockRejectedValueOnce(new Error('connect ECONNREFUSED'))
     const handler = createHandler(connect)
 
-    const failed = await invoke(handler, httpApiEvent('GET', MENU_PATH))
+    const failed = await invoke(handler, httpApiEvent('GET', MENU_URL))
     expect(failed.status).toBe(503)
     expect(failed.headers['content-type']).toMatch(/^application\/problem\+json/)
     expect(failed.headers['retry-after']).toBe(String(RETRY_AFTER_SECONDS))
@@ -261,7 +255,7 @@ describe('handler de Lambda', () => {
       requestId: AWS_REQUEST_ID,
     })
 
-    const recovered = await invoke(handler, httpApiEvent('GET', MENU_PATH))
+    const recovered = await invoke(handler, httpApiEvent('GET', MENU_URL))
     expect(recovered.status).toBe(200)
     expect(connect).toHaveBeenCalledTimes(2)
   })
@@ -277,7 +271,7 @@ describe('handler de Lambda', () => {
 
     const response = await invoke(
       handler,
-      albEvent('GET', MENU_PATH, { headers: { 'X-Request-Id': 'pedido-via-alb' } }),
+      albEvent('GET', MENU_URL, { headers: { 'X-Request-Id': 'pedido-via-alb' } }),
     )
 
     expect(response.status).toBe(200)
@@ -311,7 +305,7 @@ describe('handler de Lambda', () => {
 
     const failed = await invoke(
       createHandler(connect),
-      event('GET', MENU_PATH, { headers: { 'x-request-id': 'pedido-do-cliente' } }),
+      event('GET', MENU_URL, { headers: { 'x-request-id': 'pedido-do-cliente' } }),
     )
 
     expect(failed.status).toBe(503)

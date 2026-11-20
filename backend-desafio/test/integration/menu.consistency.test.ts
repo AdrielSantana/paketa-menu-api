@@ -1,5 +1,5 @@
 import request from 'supertest'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
 import { logger } from '../../src/logger'
@@ -9,16 +9,15 @@ import {
   MENU_URL,
   type MenuNode,
   createMenu,
+  deleteMenu,
   expectProblem,
+  getMenu,
   getMenuNames,
+  postMenu,
   seedMenu,
 } from '../support/menu'
 
 // Testes de caixa-branca: conferem no banco o que a API não mostra.
-
-const post = (name: string, relatedId: string) =>
-  request(app).post(MENU_URL).send({ name, relatedId })
-const del = (id: string, query = '') => request(app).delete(`${MENU_URL}/${id}${query}`)
 
 // Itens cujo pai não existe mais: invisíveis no menu e ocupando um nome.
 const findOrphanNames = async (): Promise<string[]> => {
@@ -28,10 +27,6 @@ const findOrphanNames = async (): Promise<string[]> => {
     .filter(menu => menu.relatedId && !ids.has(menu.relatedId.toString()))
     .map(menu => menu.name)
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('índices', () => {
   it('nameKey tem índice único e relatedId tem índice', async () => {
@@ -46,7 +41,7 @@ describe('índices', () => {
   })
 
   it('grava a chave de unicidade normalizada e relatedId null na raiz', async () => {
-    await request(app).post(MENU_URL).send({ name: '  Smart   TV ' }).expect(201)
+    await createMenu('  Smart   TV ')
 
     const [menu] = await Menu.find().lean()
 
@@ -63,10 +58,10 @@ describe('concorrência (ADR 0005)', () => {
       const childId = await createMenu(`Filho ${round}`, parentId)
 
       const [deletion, ...creations] = await Promise.all([
-        del(parentId, '?children=cascade'),
-        post(`Novo filho A ${round}`, parentId),
-        post(`Novo filho B ${round}`, parentId),
-        post(`Novo neto ${round}`, childId),
+        deleteMenu(parentId, '?children=cascade'),
+        postMenu({ name: `Novo filho A ${round}`, relatedId: parentId }),
+        postMenu({ name: `Novo filho B ${round}`, relatedId: parentId }),
+        postMenu({ name: `Novo neto ${round}`, relatedId: childId }),
       ])
 
       expect(deletion.status).toBe(200)
@@ -86,8 +81,8 @@ describe('concorrência (ADR 0005)', () => {
       const leafId = await createMenu(`Folha ${round}`)
 
       const [deletion, creation] = await Promise.all([
-        del(leafId),
-        post(`Filho da folha ${round}`, leafId),
+        deleteMenu(leafId),
+        postMenu({ name: `Filho da folha ${round}`, relatedId: leafId }),
       ])
 
       // Ou a folha foi apagada e o filho recusado, ou o filho entrou e a
@@ -117,7 +112,7 @@ describe('atomicidade', () => {
     const ids = await seedMenu(enunciadoTree)
     vi.spyOn(Menu, 'deleteMany').mockRejectedValueOnce(new Error('falha simulada'))
 
-    const response = await del(ids.get('Televisores')!, '?children=promote')
+    const response = await deleteMenu(ids.get('Televisores')!, '?children=promote')
 
     expectProblem(response, 500, 'INTERNAL_ERROR')
     // O updateMany dos filhos já tinha rodado dentro da transação; o rollback
@@ -130,7 +125,11 @@ describe('atomicidade', () => {
     const before = await Menu.findById(parentId).lean()
     vi.spyOn(Menu, 'create').mockRejectedValueOnce(new Error('falha simulada'))
 
-    expectProblem(await post('Televisores', parentId), 500, 'INTERNAL_ERROR')
+    expectProblem(
+      await postMenu({ name: 'Televisores', relatedId: parentId }),
+      500,
+      'INTERNAL_ERROR',
+    )
 
     expect(await Menu.findById(parentId).lean()).toStrictEqual(before)
     expect(await Menu.countDocuments()).toBe(1)
@@ -186,15 +185,15 @@ describe('aninhamento infinito (ADR 0008)', () => {
       })),
     )
 
-    const response = await request(app).get(MENU_URL).expect(200)
+    const tree = await getMenu()
 
-    let node: MenuNode | undefined = (response.body as MenuNode[])[0]
+    let node: MenuNode | undefined = tree[0]
     let depth = 0
     while (node) {
       depth++
       node = node.submenus?.[0]
     }
     expect(depth).toBe(DEPTH)
-    expect(() => JSON.stringify(response.body)).toThrow(RangeError)
+    expect(() => JSON.stringify(tree)).toThrow(RangeError)
   })
 })

@@ -1,13 +1,9 @@
 import request from 'supertest'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
 import { logger } from '../../src/logger'
 import { expectProblem } from '../support/menu'
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('erros fora do caminho feliz (ADR 0007)', () => {
   it('rota desconhecida devolve 404 em Problem Details', async () => {

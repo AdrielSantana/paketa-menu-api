@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 import request from 'supertest'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import app from '../../src/app'
 import { DEFAULT_MENU_MAX_ITEMS, RETRY_AFTER_SECONDS, config } from '../../src/config'
@@ -11,23 +11,18 @@ import { connectTestDatabase, disconnectTestDatabase } from '../support/database
 import {
   MENU_URL,
   createMenu,
+  deleteMenu,
   expectProblem,
   getMenu,
   getMenuNames,
+  postMenu,
   seedMenu,
 } from '../support/menu'
 
 // Limites e tratativas de falha do ADR 0010.
 
-const post = (body: object) => request(app).post(MENU_URL).send(body)
-const del = (id: string, query = '') => request(app).delete(`${MENU_URL}/${id}${query}`)
-
 const serverError = (code: number, errmsg: string) =>
   new mongoose.mongo.MongoServerError({ code, errmsg })
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('teto de itens', () => {
   it('recusa criar acima do teto com 409 e volta a aceitar quando abre espaço', async () => {
@@ -41,11 +36,11 @@ describe('teto de itens', () => {
     )
     const lastId = await createMenu('Último que cabe')
 
-    const refused = await post({ name: 'Um a mais' })
+    const refused = await postMenu({ name: 'Um a mais' })
     expectProblem(refused, 409, 'MENU_LIMIT_REACHED')
     expect(refused.body.limit).toBe(DEFAULT_MENU_MAX_ITEMS)
     expectProblem(
-      await post({ name: 'Sub-item a mais', relatedId: lastId }),
+      await postMenu({ name: 'Sub-item a mais', relatedId: lastId }),
       409,
       'MENU_LIMIT_REACHED',
     )
@@ -53,7 +48,7 @@ describe('teto de itens', () => {
     // No teto, o menu inteiro ainda é devolvido.
     expect(await getMenu()).toHaveLength(DEFAULT_MENU_MAX_ITEMS)
 
-    await del(lastId).expect(200)
+    await deleteMenu(lastId).expect(200)
     await createMenu('Agora cabe')
   })
 })
@@ -64,7 +59,7 @@ describe('caracteres do nome', () => {
     ['escape de terminal', 'TV\u001b[31m'],
     ['surrogate solto', 'TV\ud800'],
   ])('recusa nome com %s', async (_label, name) => {
-    const response = await post({ name })
+    const response = await postMenu({ name })
 
     expectProblem(response, 400, 'VALIDATION_FAILED')
     expect(response.body.errors).toEqual([
@@ -73,7 +68,7 @@ describe('caracteres do nome', () => {
   })
 
   it('nome só com caracteres invisíveis é recusado como vazio', async () => {
-    const response = await post({ name: '\u200b\u2060' })
+    const response = await postMenu({ name: '\u200b\u2060' })
 
     expectProblem(response, 400, 'VALIDATION_FAILED')
     expect(response.body.errors).toEqual(['name must not be blank'])
@@ -82,7 +77,7 @@ describe('caracteres do nome', () => {
   it('caractere invisível não burla a unicidade do nome', async () => {
     await createMenu('LCD')
 
-    expectProblem(await post({ name: 'LCD\u200b' }), 409, 'MENU_NAME_TAKEN')
+    expectProblem(await postMenu({ name: 'LCD\u200b' }), 409, 'MENU_NAME_TAKEN')
   })
 
   it('aceita emoji e trata tabulação e quebra de linha como espaço', async () => {
@@ -98,7 +93,7 @@ describe('caracteres do nome', () => {
 
 describe('requisição', () => {
   it('corpo acima de 10 KB devolve 413 em Problem Details', async () => {
-    const response = await post({ name: 'a'.repeat(20_000) })
+    const response = await postMenu({ name: 'a'.repeat(20_000) })
 
     expectProblem(response, 413, 'PAYLOAD_TOO_LARGE')
   })
@@ -119,7 +114,7 @@ describe('cascata', () => {
       throw serverError(40099, '$graphLookup reached maximum memory consumption')
     })
 
-    const response = await del(ids.get('Informática')!, '?children=cascade')
+    const response = await deleteMenu(ids.get('Informática')!, '?children=cascade')
 
     expectProblem(response, 409, 'MENU_SUBTREE_TOO_LARGE')
     expect(await getMenuNames()).toStrictEqual(enunciadoTree)
@@ -139,7 +134,7 @@ describe('banco lento ou fora do ar', () => {
     try {
       await getMenu()
       await createMenu('Áudio', ids.get('Eletrodomésticos'))
-      await del(ids.get('Informática')!, '?children=cascade').expect(200)
+      await deleteMenu(ids.get('Informática')!, '?children=cascade').expect(200)
     } finally {
       client.off('commandStarted', record)
     }
@@ -180,9 +175,9 @@ describe('banco lento ou fora do ar', () => {
     try {
       const responses = [
         await request(app).get(MENU_URL),
-        await post({ name: 'Raiz nova' }),
-        await post({ name: 'Computadores', relatedId: parentId }),
-        await del(parentId),
+        await postMenu({ name: 'Raiz nova' }),
+        await postMenu({ name: 'Computadores', relatedId: parentId }),
+        await deleteMenu(parentId),
       ]
       for (const response of responses) {
         expectProblem(response, 503, 'SERVICE_UNAVAILABLE')

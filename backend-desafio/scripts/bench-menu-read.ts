@@ -15,6 +15,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import mongoose, { Types } from 'mongoose'
 
 import { buildMenuTree, serializeMenuTree } from '../src/domain/menu-tree'
+import { MONGODB_VERSION } from '../test/setup/mongo-server'
 
 interface Row {
   _id: Types.ObjectId
@@ -47,7 +48,7 @@ const report = (record: object) => console.log(JSON.stringify(record))
 
 const main = async () => {
   const replSet = await MongoMemoryReplSet.create({
-    binary: { version: '8.0.26' },
+    binary: { version: MONGODB_VERSION },
     replSet: { count: 1 },
   })
   // O mongod que acabou de subir é o processo mais novo com esse nome.
