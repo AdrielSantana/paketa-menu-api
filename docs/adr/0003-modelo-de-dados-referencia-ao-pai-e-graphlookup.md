@@ -1,6 +1,6 @@
 # ADR 0003: Modelo de dados com referência ao pai, ObjectId e `$graphLookup`
 
-- **Status:** aceito
+- **Status:** aceito; a leitura do menu no `GET` foi alterada pelo ADR 0009
 - **Data:** 2026-11-19
 
 ## Contexto
@@ -30,7 +30,7 @@ A vaga usa DocumentDB. Conferido na documentação da AWS em 2026-11-19: o `$gra
 
 **A hierarquia é percorrida pelo banco com `$graphLookup`**, tanto para montar o menu (`GET`) quanto para achar a subárvore na exclusão em cascata (ADR 0004). O ambiente de referência é MongoDB 8.0, compatível com DocumentDB 8.0.
 
-**O `GET` usa um pipeline só:** `$match` nos itens de primeiro nível, `$graphLookup` descendo por `relatedId` e `$project` com `_id`, `name` e `relatedId`. O banco devolve, para cada raiz, a lista plana dos seus descendentes; uma função pura (`buildMenuTree`) transforma essa lista no JSON aninhado.
+**O `GET` usa um pipeline só** (alterado pelo ADR 0009: hoje é um `find` da coleção)**:** `$match` nos itens de primeiro nível, `$graphLookup` descendo por `relatedId` e `$project` com `_id`, `name` e `relatedId`. O banco devolve, para cada raiz, a lista plana dos seus descendentes; uma função pura (`buildMenuTree`) transforma essa lista no JSON aninhado.
 
 **Irmãos são ordenados por `_id` crescente**, que acompanha a ordem de criação. A ordenação é feita na aplicação, porque o `$graphLookup` não garante a ordem do array de resultado.
 
@@ -51,7 +51,7 @@ O ObjectId é gerado pelo driver sem ida ao banco, é único sem coordenação e
 - **Array de ancestrais** (cada item guarda os ids de todos os pais). Lê a subárvore e a ancestralidade com uma consulta indexada, sem recursão, e roda em DocumentDB 4.0+. Mas promover ou mover um item obriga a reescrever o array em todos os descendentes. Com as duas estratégias de exclusão do ADR 0004, a promoção passou a ser operação de primeira classe, e aí o modelo fica caro justamente na escrita.
 - **Materialized path** (caminho como string). Mesmas vantagens e o mesmo custo de reescrita, com consulta por prefixo.
 - **Nested sets.** Leitura de subárvore muito barata, mas cada inserção renumera parte da coleção. Ruim para um menu que recebe escritas.
-- **Uma consulta `find` da coleção inteira e montagem em memória.** É a opção mais simples e, para devolver o menu inteiro, lê os mesmos documentos. Descartada porque deixaria a aplicação responsável por percorrer o grafo também na exclusão, carregando a coleção para apagar uma subárvore.
+- **Uma consulta `find` da coleção inteira e montagem em memória.** É a opção mais simples e, para devolver o menu inteiro, lê os mesmos documentos. Descartada aqui porque deixaria a aplicação responsável por percorrer o grafo também na exclusão, carregando a coleção para apagar uma subárvore. Depois das medições, o ADR 0009 adotou o `find` só para o `GET` e manteve o `$graphLookup` na exclusão.
 - **N consultas recursivas** (uma por nível ou por item). Uma ida ao banco por nível; cresce com a profundidade.
 
 ## Consequências

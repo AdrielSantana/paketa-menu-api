@@ -29,4 +29,4 @@ A montagem da árvore (`buildMenuTree`) também não usa recursão.
 - A equivalência com `JSON.stringify` é garantida por um teste de propriedade (árvores e nomes arbitrários, incluindo caracteres que exigem escape) e não por inspeção.
 - Há testes com 100 mil níveis na função pura e com 5.000 níveis de ponta a ponta, passando pelo banco e pelo HTTP.
 - O formato dos nós está fixo no serializador (`id`, `name`, `submenus`). Um campo novo na resposta precisa ser acrescentado ali.
-- "Infinito" continua limitado por outros fatores: os limites do `$graphLookup` (ADR 0003), a memória do processo e a capacidade do cliente de ler a resposta.
+- "Infinito" continua limitado por outros fatores: os limites do `$graphLookup` na cascata (ADR 0009), a memória do processo e a capacidade do cliente de ler a resposta.
