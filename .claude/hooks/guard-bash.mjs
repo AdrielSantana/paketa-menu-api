@@ -18,13 +18,16 @@ const gitSegments = text =>
     .map(segment => segment.trim())
     .filter(segment => /\bgit\b/.test(segment))
 
+const raw = gitSegments(command)
+const bare = gitSegments(unquoted)
+
 const rules = [
   {
     // --no-verify, a forma curta -n (sozinha ou junto de outras, como -nm),
     // HUSKY=0 e a troca do diretório de hooks.
     hit: () =>
       /HUSKY=0|core\.hooksPath/.test(command) ||
-      gitSegments(unquoted).some(
+      bare.some(
         segment =>
           /\bcommit\b/.test(segment) &&
           /(^|\s)(--no-verify\b|-[a-zA-Z]*n[a-zA-Z]*(\s|$))/.test(segment),
@@ -32,24 +35,24 @@ const rules = [
     reason: 'Não pule o pre-commit. Corrija o que o hook apontou.',
   },
   {
-    hit: () => gitSegments(command).some(segment => /\bpush\b.*\bupstream\b/.test(segment)),
+    hit: () => raw.some(segment => /\bpush\b.*\bupstream\b/.test(segment)),
     reason: 'Nada de push no repositório da Paketá. O remoto de entrega é o origin.',
   },
   {
     // Do upstream só se busca a branch boilerplate, e pelo nome.
     hit: () =>
-      gitSegments(command).some(
+      raw.some(
         segment =>
           /\b(fetch|pull)\b.*--all\b|\bremote\s+update\b/.test(segment) ||
-          (/\b(fetch|pull)\b.*\bupstream\b/.test(segment) && !/\bboilerplate\b/.test(segment)),
+          (/\b(fetch|pull)\b.*\bupstream\b/.test(segment) &&
+            !/\bboilerplate\b/.test(segment)),
       ),
     reason:
       'Do upstream só a branch boilerplate, pedida pelo nome: git fetch upstream boilerplate.',
   },
   {
-    // Qualquer comando git que cite as branches proibidas, menos dentro de
-    // aspas (a mensagem de um commit pode citá-las).
-    hit: () => gitSegments(unquoted).some(segment => FORBIDDEN_BRANCHES.test(segment)),
+    // Qualquer comando git que cite as branches proibidas fora de aspas.
+    hit: () => bare.some(segment => FORBIDDEN_BRANCHES.test(segment)),
     reason:
       'As branches develop e feature/refact-* do upstream contêm uma solução pronta e não podem ser lidas.',
   },
